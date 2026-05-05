@@ -1,0 +1,75 @@
+---
+description: Гайдлайны по C# и Unity API при правке скриптов проекта.
+globs: ["**/*.cs"]
+alwaysApply: false
+---
+
+# C# / Unity-API правила
+
+Применяются автоматически при работе с любым `.cs` файлом проекта.
+
+## Жизненный цикл MonoBehaviour
+
+- **`Awake`** — самоинициализация: `GetComponent`, чтение собственных полей. НЕТ ссылок на другие объекты сцены.
+- **`OnEnable`** — подписки на события, активация InputAction.
+- **`Start`** — взаимодействие с другими объектами сцены, `FindWithTag` если нужно.
+- **`OnDisable`** — отписки, деактивация InputAction. Симметрично `OnEnable`.
+- **`OnDestroy`** — финальная очистка.
+
+Никогда не вызывай `GetComponent` / `Find...` в `Update` без крайней необходимости.
+
+## Input System
+
+В проекте — **новый Input System** (пакет `com.unity.inputsystem`), не legacy `Input.GetKey...`. Если нужен новый bind — добавь его в `Assets/Input/PlayerInputActions.inputactions` и используй сгенерированный `PlayerInputActions.cs` или подписку на действия через `PlayerInput`.
+
+Запрещено: `UnityEngine.Input.GetKey/GetKeyDown/GetMouseButton...` — старый API.
+Разрешено: `Keyboard.current.spaceKey.wasPressedThisFrame`, `InputAction`-биндинги, `PlayerInput` events.
+
+## Animator
+
+- Параметры аниматора всегда обращай через **захэшированные ID**: `Animator.StringToHash("Speed")` в статическом поле, не строкой каждый кадр.
+- Перед `SetTrigger`/`SetFloat`/`SetBool` проверяй наличие параметра, если код общий (см. `EnemyAI.HasAnimatorParam`).
+
+## NavMesh
+
+- `NavMeshAgent.SetDestination` дорого вызывать каждый кадр — кидай только при изменении цели или с интервалом.
+- `agent.stoppingDistance`, `agent.updateRotation` — настраивай в `Awake`, не в `Update`.
+
+## Физика и коллайдеры
+
+- `OverlapSphere`/`OverlapBox` — используй `NonAlloc`-варианты с заранее аллоцированным буфером (как `_hits` в `PlayerAttack`).
+- LayerMask — публичное `LayerMask`-поле в Inspector, не строка имени слоя в коде.
+- Триггеры — `OnTriggerEnter`, не `OnCollisionEnter`, если нужен только факт пересечения.
+
+## ScriptableObject
+
+- `[CreateAssetMenu(fileName = "...", menuName = "Slash Arena/...")]` — обязательно.
+- Поля только сериализуемые: примитивы, `UnityEngine.Object`-ссылки, классы с `[Serializable]`.
+- НЕ хранить runtime-стейт в `ScriptableObject` (он переживёт между сценами и заассетится в Editor).
+- Создание нового `ScriptableObject`-класса — **согласовать с Claude** (это структурное решение).
+
+## UI
+
+- `TextMeshPro` (TMP) для всех текстов, не legacy `UI.Text`.
+- Кэшируй ссылку на `TMP_Text` в `Awake`, не ищи каждый кадр.
+
+## Сериализация
+
+- Поля для сейва — простые `[Serializable]` классы.
+- `JsonUtility.ToJson(obj, prettyPrint: true)` для отладки.
+- Никаких `BinaryFormatter` (deprecated и небезопасен).
+
+## Что точно НЕ делать
+
+- `GameObject.Find("Имя")` — хрупко. Используй теги, `[SerializeField]` ссылки или явные сервисы.
+- `Camera.main` в горячих циклах — кэшируй один раз.
+- `string` конкатенация в `Update` (мусор для GC) — используй `StringBuilder` или TMP-методы напрямую.
+- `gameObject.SetActive(true/false)` для пуллинга по умолчанию — обсуждаем, если массовые объекты (враги, снаряды).
+- Магические числа в коде — выноси в `[SerializeField]` поля или в `ScriptableObject`-конфиг.
+
+## Стиль
+
+- Опускай `private` (это default), но пиши `public`/`protected`/`internal` явно.
+- `var` — там где тип очевиден из правой части.
+- Открывающая `{` на новой строке (Allman) — соответствует стилю проекта.
+- Один class — один файл, имя файла = имя класса.
