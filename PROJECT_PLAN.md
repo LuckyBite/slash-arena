@@ -146,20 +146,51 @@ Assets/
 
 **Acceptance:** персонаж плавно идёт/бежит, бьёт во время бега, прыжок не глючит, в Profiler нет лишних аллокаций от Animator.
 
+### Фаза 1.5 — Расширенный мувмент и боевой комплект
+
+**Цель:** довести управление до уровня экшн-слешера.
+
+**Биндинги (зафиксированы):**
+| Действие | Кнопка | Реализация |
+|---|---|---|
+| Бег во все стороны | WASD | уже есть (Blend Tree) |
+| Спринт | Shift | InputAction `Sprint`, `Speed` параметр в Locomotion-tree (0/1/2) |
+| Перекат / уклонение | **Alt** | импульс по `desired`-вектору + Roll 2D Blend Tree (`RollForward/Back/Left/Right` из Blink), кулдаун ~0.8 сек |
+| Прыжок | **Space** | 3-стейтный: `JumpWhileRunning` (Up) → `FallingLoop` → blend в Locomotion. Apply Root Motion = OFF на Player, важно. Заморожен до Шага 7 |
+| Лёгкий удар | LMB | уже есть (`Attack_Punch` / `Attack_OneHandSword` через `WeaponDefinition` после Phase 2) |
+| Тяжёлый удар | E | `AttackStrength.Heavy` уже есть в `PlayerAttack`, нужен InputAction + триггер |
+| Удар ногой | Q | новый клип (Mixamo — Roundhouse Kick), отдельный hitshape |
+| Защита (блок) | RMB (hold) | bool-параметр `isBlocking`, замедляет движение, поглощает % урона; `BlockingLoop.fbx` уже есть в Blink |
+| Бросок | G | позже (Phase 2.5+) |
+| Магия / способности | 1, 2, 3, 4 | позже (отдельная фаза) |
+| Crouch (присесть) | C (или Ctrl alt) | опционально, оставлен в Input Actions |
+| Смена оружия | Mouse Scroll / 1-9 | используется в Phase 2.5 (Previous/Next в Input Actions) |
+
+**Acceptance:** на клавиатуре можно сделать всю «золотую петлю» слешера — бег + спринт + уклонение + прыжок + лёгкий/тяжёлый удар + блок. Анимации соответствуют действиям.
+
 ### Фаза 2 — Подбор оружия со стойки
 
 **Цель:** игрок может подойти к стойке и взять оружие. Оружие — данные.
 
+**Биндинг подбора:** **F** (Pickup / Drop), как в большинстве слешеров.
+
 **Работы:**
-- `WeaponDefinition` (ScriptableObject): id, displayName, icon, hand-prefab, `WeaponConfig` (light/heavy hitshape — `PlayerAttack` уже знает структуру), animator override, sfx.
+- `WeaponDefinition` (ScriptableObject): id, displayName, icon, hand-prefab, `WeaponConfig` (light/heavy hitshape — `PlayerAttack` уже знает структуру), **`RuntimeAnimatorController` (Animator Override Controller)**, sfx.
+  - **Принцип:** базовый `Player_Animator` задаёт структуру (стейты `LightAttack`/`HeavyAttack`/`Kick`/`Block`), а Override Controller под каждое оружие **подменяет клипы**. Без оружия (Fist) → `PunchLeft`/`PunchRight`. Меч → `MeleeAttack_OneHanded`. И т. д.
+  - В коде при смене оружия: `animator.runtimeAnimatorController = weaponDefinition.overrideController;`
 - `WeaponHolder` на персонаже (точка `RightHandSocket`, привязанная к кости правой руки).
 - `WeaponPickup` (компонент на стойке): triggerCollider + ссылка на `WeaponDefinition` + UI-prompt.
 - `IInteractable` интерфейс (на будущее: двери, рычаги, сундуки).
 - Рефакторинг `PlayerAttack`: статы атаки берутся из текущего `WeaponDefinition`, а не из жёстко прошитых полей.
+- **Слоты оружия (упрощённо):** один активный слот в Phase 2. Множественные слоты + переключение по колесу мыши — отложено в **Phase 2.5**, чтобы не растягивать Phase 2.
 
 **Концепции:** ScriptableObject-как-данные, интерфейсы интеракций, Animator Override Controller, костные сокеты.
 
-**Acceptance:** подходишь к стойке → подсказка → E → меч в руке, статы и анимации поменялись; бросил оружие → кулаки.
+**Acceptance:** подходишь к стойке → подсказка «F: взять Меч» → нажал F → меч в руке, статы и анимации поменялись; снова F рядом со стойкой → кулаки.
+
+### Фаза 2.5 — Несколько слотов оружия (опционально)
+
+Когда Phase 2 устаканится, расширим: 2–4 слота, переключение колесом мыши или цифрами 5/6, иконки в HUD. Не делаем, пока однослотовая версия не работает идеально.
 
 ### Фаза 3 — Категории врагов
 
@@ -251,16 +282,18 @@ Assets/
 
 ## 6. Текущий статус
 
-**Активная фаза:** 0 — Фундамент.
+**Фаза 0 — Фундамент: ✅ ЗАКРЫТА (2026-05-04)**
 
-| Шаг | Статус | Комментарий |
-|---|---|---|
-| `.gitignore` для Unity | ✅ | создан в корне (`/.gitignore`) |
-| `PROJECT_PLAN.md` (этот файл) | ✅ | в корне |
-| Git init + GitHub репо | ⏳ за владельцем | `git init` → создать приватный репо на GitHub → push |
-| Добавить Claude в репо | ⏳ за владельцем | по готовности |
-| Реорганизация `Assets/_Project/` | ⏳ | делаем после git init, чтобы перенос был отдельным коммитом |
-| `GameConfig.asset` (пилотный SO) | ⏳ | финальный шаг Фазы 0 |
+| Шаг | Статус |
+|---|---|
+| `.gitignore` для Unity | ✅ |
+| `PROJECT_PLAN.md` | ✅ |
+| Git init + приватный репо на GitHub + push | ✅ |
+| Cursor rules (`.cursor/rules/architecture.mdc`, `unity-csharp.mdc`) | ✅ |
+| Реорганизация `Assets/_Project/` | ✅ |
+| `GameConfig.cs` + `GameConfig.asset` (пилотный SO) | ✅ |
+
+**Следующая фаза:** 1 — Оптимизация анимации главного персонажа.
 
 ---
 
@@ -273,6 +306,14 @@ Assets/
 - **2026-05-04.** Принято: всё своё в `Assets/_Project/`, Imported не трогаем (D2).
 - **2026-05-04.** Принято: data-driven через ScriptableObject — основа архитектуры (D1).
 - **2026-05-04.** Создан `.gitignore` (стандартный Unity-набор). Создан `PROJECT_PLAN.md`.
+- **2026-05-04.** Git init, приватный репо на GitHub, первый push. Добавлены правила Cursor.
+- **2026-05-04.** Реорганизация `Assets/` под `_Project/` через Unity Editor (drag-and-drop с переносом meta-файлов).
+- **2026-05-04.** Создан `GameConfig.cs` + `GameConfig.asset` — первый ScriptableObject в проекте. **Фаза 0 закрыта.**
+- **2026-05-04.** Старт Фазы 1. Подтверждено: Humanoid Avatar уже стоит, 2D Blend Tree собран на 7 направлений, UpperBody Layer с Avatar Mask `UpperBodyMask.mask` существует, `AttackLayerWeight` (StateMachineBehaviour) автоматически плавно регулирует вес слоя.
+- **2026-05-04.** В `ThirdPersonController.cs` добавлен `SetTrigger("Jump")` в `DoJumpIfAllowed`. Теперь анимация прыжка триггерится при физическом прыжке.
+- **2026-05-04.** Зафиксирован полный мувмент-комплект: Phase 1.5 («Расширенный мувмент»). Биндинги: WASD/Shift/Ctrl/Space/LMB/E/Q/RMB/F. Слоты оружия — Phase 2.5.
+- **2026-05-05.** **Прыжок ЗАМОРОЖЕН.** Базовая механика работает физически, но анимация выглядит криво (вероятно из-за Apply Root Motion / неподходящего клипа в `Jumps.fbx`). В геймплее слешера прыжок не критичен — приоритет на спринт, уклонение, блок и удары. Возвращаемся к нему в Phase 1.5 после остального мувмента или позже. В коде `SetTrigger("Jump")` остаётся — просто не даёт ожидаемого результата визуально.
+- **2026-05-05.** Аудит анимаций Blink. Зафиксирована новая архитектура мувмента: единый Locomotion 1D-by-Speed с вложенными 2D Run-tree и Sprint-tree (idle/run/sprint × 6 направлений). Стрейф **убран** из плана как нехарактерный для слешера. Roll/Dodge → **Alt**, прыжок → **Space** (нормальный 3-стейтный, возвращаем в Шаге 7). Шаги Phase 1.5: 3 (UpperBody атаки), 4 (рефакторинг кода), 5 (Locomotion-tree), 6 (Roll), 7 (нормальный прыжок).
 
 ---
 

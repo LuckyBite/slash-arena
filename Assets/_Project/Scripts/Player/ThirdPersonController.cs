@@ -14,6 +14,8 @@ public class ThirdPersonController : MonoBehaviour
 
     [Header("Movement")]
     public float moveSpeed = 5f;
+    [Tooltip("Множитель скорости при зажатом Sprint")]
+    [SerializeField] private float sprintMultiplier = 1.7f;
     public float rotationSmoothTime = 0.10f;
     public float animDampGround = 0.02f;
     public float animDampIdle   = 0.10f;
@@ -21,18 +23,23 @@ public class ThirdPersonController : MonoBehaviour
     [Header("Jump & Gravity (by metrics)")]
     [Tooltip("Высота прыжка (м)")]
     public float jumpHeight = 1.6f;
+    [SerializeField] private bool jumpEnabled = false;
     [Tooltip("Время до апекса (сек) — меньше = быстрее и «тяжелее»")]
     public float timeToApex = 0.33f;
+    [Tooltip("Мин. интервал между стартами прыжка (сек). Нужен, чтобы спам пробела не триггерил прыжок повторно до отрыва.")]
+    [SerializeField] private float jumpCooldown = 0.25f;
     [Tooltip("Прилипание к земле")]
     public float groundStick = -2f;
 
     [Header("Ground Check")]
     [Tooltip("Радиус сферы у ног")]
-    public float groundProbeRadius = 0.24f;
+    public float groundProbeRadius = 0.32f;
     [Tooltip("Макс. дистанция SphereCast вниз")]
-    public float groundCastDistance = 0.5f;
+    public float groundCastDistance = 0.8f;
     [Tooltip("Гашение дрожания статуса (сек)")]
     public float groundedGrace = 0.03f;
+    [Tooltip("Если завис в воздухе без движения дольше этого времени — мягко сбросить velocity и попробовать переприжать")]
+    [SerializeField] private float airStuckRecoverTime = 1.5f;
 
     [Header("Coyote / Buffer")]
     [Tooltip("Время после схода с края, когда прыжок ещё возможен")]
@@ -45,13 +52,22 @@ public class ThirdPersonController : MonoBehaviour
     [Header("Input Action Names (как в твоём Input Actions)")]
     public string actionMove = "Move";
     public string actionJump = "Jump";
+    public string actionSprint = "Sprint";
     public string pMoveX = "MoveX";
     public string pMoveY = "MoveY";
     public string pSpeed = "Speed";
     public string pIsMoving = "isMoving";
     public string pIsGrounded = "isGrounded";
-    public string pTrigPunch = "Attack_Punch";
-    public string pTrigSword = "Attack_OneHandSword";
+    public string pTrigLight = "Attack_Light";
+    public string pTrigHeavy = "Attack_Heavy";
+    public string pTrigKick  = "Kick";
+    public string pBoolBlock = "Block";
+    public string pTrigJump  = "Jump";
+
+    public string actionAttackLight = "Attack_Light";
+    public string actionAttackHeavy = "Attack_Heavy";
+    public string actionBlock       = "Block";
+    public string actionKick        = "Kick";
 
     [Header("UpperBody / Attacks")]
     public int   upperBodyLayerIndex = 1;
@@ -62,11 +78,13 @@ public class ThirdPersonController : MonoBehaviour
     private CharacterController cc;
     private PlayerInput pi;
     private Vector2 moveInput;
+    private bool sprintHeld;
     private Vector3 velocity;
     private float rotVel;
     private bool grounded;
     private float lastGroundTime = -999f;
     private float lastJumpPressedTime = -999f; // буфер нажатия прыжка
+    private float lastJumpStartedTime = -999f;
 
     private float gravity;      // высчитываем из метрик
     private float jumpVelocity; // высчитываем из метрик
@@ -74,9 +92,12 @@ public class ThirdPersonController : MonoBehaviour
     private float nextAttackAllowed = -1f;
     private bool isAttackLocked = false;
     private float attackReleaseUntil = -1f;
+    private float _stuckLogCooldown;
+    private float _airStuckTimer;
 
     // animator hashes
-    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hPunch, hSword;
+    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hJump;
+    private static readonly int H_UPPER_EMPTY = Animator.StringToHash("Upper_Empty");
 
     private void Awake()
     {
@@ -96,14 +117,24 @@ public class ThirdPersonController : MonoBehaviour
         hSpeed      = Animator.StringToHash(pSpeed);
         hIsMoving   = Animator.StringToHash(pIsMoving);
         hIsGrounded = Animator.StringToHash(pIsGrounded);
-        hPunch      = Animator.StringToHash(pTrigPunch);
-        hSword      = Animator.StringToHash(pTrigSword);
+        hLight      = Animator.StringToHash(pTrigLight);
+        hHeavy      = Animator.StringToHash(pTrigHeavy);
+        hKick       = Animator.StringToHash(pTrigKick);
+        hBlock      = Animator.StringToHash(pBoolBlock);
+        hJump       = Animator.StringToHash(pTrigJump);
 
         // Привязка инпута (Invoke C# Events)
         var map = pi.actions;
         map[actionMove].performed += OnMove;
         map[actionMove].canceled  += OnMove;
         map[actionJump].performed += OnJump;
+        map[actionSprint].performed += OnSprintPerformed;
+        map[actionSprint].canceled  += OnSprintCanceled;
+        map[actionAttackLight].performed += OnAttackLight;
+        map[actionAttackHeavy].performed += OnAttackHeavy;
+        map[actionKick].performed += OnKick;
+        map[actionBlock].performed += OnBlockPerformed;
+        map[actionBlock].canceled  += OnBlockCanceled;
     }
 
     private void OnDestroy()
@@ -116,8 +147,22 @@ public class ThirdPersonController : MonoBehaviour
                 map[actionMove].performed -= OnMove;
                 map[actionMove].canceled  -= OnMove;
                 map[actionJump].performed -= OnJump;
+                map[actionSprint].performed -= OnSprintPerformed;
+                map[actionSprint].canceled  -= OnSprintCanceled;
+                map[actionAttackLight].performed -= OnAttackLight;
+                map[actionAttackHeavy].performed -= OnAttackHeavy;
+                map[actionKick].performed -= OnKick;
+                map[actionBlock].performed -= OnBlockPerformed;
+                map[actionBlock].canceled  -= OnBlockCanceled;
             }
         }
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus) return;
+        sprintHeld = false;
+        moveInput = Vector2.zero;
     }
 
     private void Update()
@@ -126,10 +171,17 @@ public class ThirdPersonController : MonoBehaviour
         ApplyVertical();
         ApplyHorizontal();
         RecoverAttackIfFinished();
+        UpdateUpperBodyLayerWeight();
 
-        // Если атака не играет — слой в 0, чтобы не «кусал» локомоцию
-        if (animator && animator.layerCount > upperBodyLayerIndex && !IsUpperAttackPlaying())
-            animator.SetLayerWeight(upperBodyLayerIndex, 0f);
+        // Self-diagnostic: input есть, но не двигаемся → лог раз в секунду
+        if (moveInput.sqrMagnitude > 0.01f
+            && cc.velocity.sqrMagnitude < 0.01f
+            && grounded
+            && Time.time > _stuckLogCooldown)
+        {
+            _stuckLogCooldown = Time.time + 1f;
+            Debug.LogWarning($"[STUCK] mv={moveInput} sprintHeld={sprintHeld} attackLocked={isAttackLocked} releaseUntil={attackReleaseUntil:F2} velY={velocity.y:F2} grounded={grounded}");
+        }
     }
 
     // ===== Ground =====
@@ -168,7 +220,25 @@ public class ThirdPersonController : MonoBehaviour
         if (!grounded && (Time.time - lastGroundTime) <= groundedGrace)
             grounded = true;
 
+        if (!wasGrounded && grounded)
+        {
+            if (animator) animator.ResetTrigger(hJump);
+            velocity.y = groundStick;
+        }
+
         if (animator) animator.SetBool(hIsGrounded, grounded);
+
+        // Recovery: если в воздухе и не падаем → попробуем зануляться
+        if (!grounded && Mathf.Abs(velocity.y) < 0.05f)
+        {
+            _airStuckTimer += Time.deltaTime;
+            if (_airStuckTimer >= airStuckRecoverTime)
+            {
+                velocity.y = -1f; // лёгкий толчок вниз, чтобы CharacterController «отлип»
+                _airStuckTimer = 0f;
+            }
+        }
+        else _airStuckTimer = 0f;
     }
 
     // ===== Vertical first =====
@@ -197,7 +267,8 @@ public class ThirdPersonController : MonoBehaviour
             transform.rotation = Quaternion.Euler(0f, y, 0f);
         }
 
-        cc.Move(desired * moveSpeed * Time.deltaTime);
+        float currentSpeed = moveSpeed * (sprintHeld && grounded ? sprintMultiplier : 1f);
+        cc.Move(desired * currentSpeed * Time.deltaTime);
 
         if (!animator) return;
 
@@ -210,7 +281,7 @@ public class ThirdPersonController : MonoBehaviour
         {
             animator.SetFloat(hMoveX, local.x);
             animator.SetFloat(hMoveY, local.z);
-            animator.SetFloat(hSpeed,  runNow ? 1f : 0f);
+            animator.SetFloat(hSpeed,  runNow ? (sprintHeld ? 1.5f : 1f) : 0f);
             animator.SetBool (hIsMoving, runNow);
             return;
         }
@@ -218,7 +289,7 @@ public class ThirdPersonController : MonoBehaviour
         float damp = runNow ? animDampGround : animDampIdle;
         animator.SetFloat(hMoveX, local.x, damp, Time.deltaTime);
         animator.SetFloat(hMoveY, local.z, damp, Time.deltaTime);
-        animator.SetFloat(hSpeed,  runNow ? 1f : 0f, damp, Time.deltaTime);
+        animator.SetFloat(hSpeed,  runNow ? (sprintHeld ? 1.5f : 1f) : 0f, damp, Time.deltaTime);
         animator.SetBool (hIsMoving, runNow);
     }
 
@@ -232,9 +303,15 @@ public class ThirdPersonController : MonoBehaviour
         DoJumpIfAllowed();
     }
 
+    private void OnSprintPerformed(InputAction.CallbackContext ctx) => sprintHeld = true;
+    private void OnSprintCanceled(InputAction.CallbackContext ctx)  => sprintHeld = false;
+
     // ===== Jump =====
     private void DoJumpIfAllowed()
     {
+        if (!jumpEnabled) return;
+        if (Time.time - lastJumpStartedTime < jumpCooldown) return;
+
         bool canUseCoyote = (Time.time - lastGroundTime) <= coyoteTime;
         bool canUseBuffer = (Time.time - lastJumpPressedTime) <= jumpBufferTime;
 
@@ -244,20 +321,46 @@ public class ThirdPersonController : MonoBehaviour
         velocity.y = jumpVelocity;
         lastJumpPressedTime = -999f;
         lastGroundTime = -999f;
-        // Твой Animator параметр "Jump" не трогаю — ты им не управляешь напрямую
+
+        // Anim: триггерим прыжок
+        if (animator)
+        {
+            animator.ResetTrigger(hJump);
+            animator.SetTrigger(hJump);
+        }
+
+        lastJumpStartedTime = Time.time;
     }
 
     // ===== Attacks =====
-    public void OnAttackPunch(InputAction.CallbackContext ctx)
+    private void OnAttackLight(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
-        TryAttack(hPunch);
+        TryAttack(hLight);
     }
 
-    public void OnAttackOneHandSword(InputAction.CallbackContext ctx)
+    private void OnAttackHeavy(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
-        TryAttack(hSword);
+        TryAttack(hHeavy);
+    }
+
+    private void OnKick(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.performed) return;
+        TryAttack(hKick);
+    }
+
+    private void OnBlockPerformed(InputAction.CallbackContext ctx)
+    {
+        Debug.Log("[Block] performed");
+        if (animator) animator.SetBool(hBlock, true);
+    }
+
+    private void OnBlockCanceled(InputAction.CallbackContext ctx)
+    {
+        Debug.Log("[Block] canceled");
+        if (animator) animator.SetBool(hBlock, false);
     }
 
     private void TryAttack(int trigHash)
@@ -269,8 +372,6 @@ public class ThirdPersonController : MonoBehaviour
         {
             animator.ResetTrigger(trigHash);
             animator.SetTrigger(trigHash);
-            if (animator.layerCount > upperBodyLayerIndex)
-                animator.SetLayerWeight(upperBodyLayerIndex, 1f);
         }
 
         isAttackLocked = true;
@@ -279,9 +380,19 @@ public class ThirdPersonController : MonoBehaviour
 
     private bool IsUpperAttackPlaying()
     {
-        if (!animator || animator.layerCount <= upperBodyLayerIndex) return false;
-        var st = animator.GetCurrentAnimatorStateInfo(upperBodyLayerIndex);
-        return st.length > 0f && st.normalizedTime < 1f && !st.IsName("Upper_Empty");
+        if (animator == null || animator.layerCount <= upperBodyLayerIndex) return false;
+        // Самая надёжная проверка: есть ли в текущем стейте верхнего слоя НАЗНАЧЕННЫЙ клип.
+        // У Upper_Empty Motion = None → ClipInfo.Length == 0 → значит активен empty → weight в 0.
+        // У LightAttack/HeavyAttack/Block/Kick клип есть → ClipInfo.Length > 0 → weight в 1.
+        var clipInfo = animator.GetCurrentAnimatorClipInfo(upperBodyLayerIndex);
+        if (clipInfo != null && clipInfo.Length > 0) return true;
+        // На время transition тоже учитываем
+        if (animator.IsInTransition(upperBodyLayerIndex))
+        {
+            var nextClipInfo = animator.GetNextAnimatorClipInfo(upperBodyLayerIndex);
+            if (nextClipInfo != null && nextClipInfo.Length > 0) return true;
+        }
+        return false;
     }
 
     private void RecoverAttackIfFinished()
@@ -290,10 +401,23 @@ public class ThirdPersonController : MonoBehaviour
         if (!IsUpperAttackPlaying())
         {
             isAttackLocked = false;
-            if (animator.layerCount > upperBodyLayerIndex)
-                animator.SetLayerWeight(upperBodyLayerIndex, 0f);
             attackReleaseUntil = Time.time + postAttackBlendHold;
         }
+    }
+
+    // Единое место управления весом UpperBody слоя.
+    // Любой не-empty стейт верхнего слоя поднимает вес плавно в 1, иначе — в 0.
+    private void UpdateUpperBodyLayerWeight()
+    {
+        if (animator == null || animator.layerCount <= upperBodyLayerIndex) return;
+
+        bool upperActive = IsUpperAttackPlaying();
+        float target = upperActive ? 1f : 0f;
+        float current = animator.GetLayerWeight(upperBodyLayerIndex);
+        // Поднимаем чуть быстрее (более резкая атака), опускаем чуть медленнее (мягкий возврат)
+        float speed = upperActive ? 16f : 9f;
+        float next = Mathf.MoveTowards(current, target, speed * Time.deltaTime);
+        animator.SetLayerWeight(upperBodyLayerIndex, next);
     }
 
 #if UNITY_EDITOR
