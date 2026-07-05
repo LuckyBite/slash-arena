@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class EnemyHealth : MonoBehaviour
+public class EnemyHealth : MonoBehaviour, IDamageable
 {
     [Header("Health")]
     public int maxHealth = 100;
@@ -53,7 +53,11 @@ public class EnemyHealth : MonoBehaviour
 
     private void Die()
     {
-        // можно добавить анимацию смерти/очистку счёта
+        // Очки за убийство (сколько именно — решает GameManager по GameConfig)
+        if (GameManager.Instance != null)
+            GameManager.Instance.RegisterKill();
+
+        // TODO (этап 1, game feel): анимация смерти + задержка перед Destroy
         Destroy(gameObject);
     }
 }

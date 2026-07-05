@@ -34,9 +34,22 @@ public class RestartManager : MonoBehaviour
 
     void Restart()
     {
-        CursorLocker.playerIsAlive = true;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        // Единый путь рестарта — через GameManager (сбрасывает timeScale и playerIsAlive)
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.Restart();
+        }
+        else
+        {
+            CursorLocker.playerIsAlive = true;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
-    private void OnRestart(InputAction.CallbackContext ctx) => Restart();
+    private void OnRestart(InputAction.CallbackContext ctx)
+    {
+        // R работает только на экране game over, чтобы случайное нажатие в бою не сбрасывало забег
+        if (GameManager.Instance == null || !GameManager.Instance.IsGameOver) return;
+        Restart();
+    }
 }

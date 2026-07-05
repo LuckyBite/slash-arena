@@ -11,7 +11,7 @@ public class GameConfig : ScriptableObject
     [Tooltip("Стартовое здоровье игрока")]
     public int playerStartHealth = 100;
 
-    [Tooltip("Базовая чувствительность мыши (множитель)")]
+    [Tooltip("Базовая чувствительность мыши (множитель). ПОКА НЕ ПОДКЛЮЧЕНО — заработает на этапе настроек")]
     [Range(0.1f, 5f)]
     public float mouseSensitivity = 1.0f;
 

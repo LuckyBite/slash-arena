@@ -1876,6 +1876,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 100
   healthSlider: {fileID: 457138512}
+  config: {fileID: 11400000, guid: bf0e39aa3a77a2447a33a0a543adb6c3, type: 2}
 --- !u!114 &405037088
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1949,6 +1950,7 @@ MonoBehaviour:
   enemyLayer:
     serializedVersion: 2
     m_Bits: 128
+  config: {fileID: 11400000, guid: bf0e39aa3a77a2447a33a0a543adb6c3, type: 2}
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -3046,6 +3048,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gameOverPanel: {fileID: 647813798}
   scoreText: {fileID: 28147233}
+  config: {fileID: 11400000, guid: bf0e39aa3a77a2447a33a0a543adb6c3, type: 2}
 --- !u!114 &1627927357
 MonoBehaviour:
   m_ObjectHideFlags: 0

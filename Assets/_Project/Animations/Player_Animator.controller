@@ -110,22 +110,6 @@ BlendTree:
   m_UseAutomaticThresholds: 1
   m_NormalizedBlendValues: 0
   m_BlendType: 1
---- !u!114 &-6483207171593034611
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3da7b9cb0a26414b97671f8dafff41a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AttackLayerWeight
-  onEnter: 1
-  onExit: 0
-  blendIn: 0.06
-  blendOut: 0.12
 --- !u!114 &-6409377423750732024
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -142,38 +126,6 @@ MonoBehaviour:
   strength: 1
   windowStart: 0.3
   windowEnd: 0.5
---- !u!114 &-6265916483837505561
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3da7b9cb0a26414b97671f8dafff41a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AttackLayerWeight
-  onEnter: 0
-  onExit: 0
-  blendIn: 0.15
-  blendOut: 0.1
---- !u!114 &-5187177232854285337
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3da7b9cb0a26414b97671f8dafff41a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AttackLayerWeight
-  onEnter: 1
-  onExit: 0
-  blendIn: 0.06
-  blendOut: 0.12
 --- !u!1102 &-5139396519464363475
 AnimatorState:
   serializedVersion: 6
@@ -188,7 +140,6 @@ AnimatorState:
   - {fileID: -1192538486561129146}
   m_StateMachineBehaviours:
   - {fileID: 3556856923726533589}
-  - {fileID: -6483207171593034611}
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
   m_WriteDefaultValues: 1
@@ -228,22 +179,6 @@ AnimatorStateTransition:
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
   m_CanTransitionToSelf: 1
---- !u!114 &-3760343295812542273
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3da7b9cb0a26414b97671f8dafff41a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  onEnter: 1
-  onExit: 0
-  blendIn: 0.08
-  blendOut: 0.1
 --- !u!1101 &-3059874376479201967
 AnimatorStateTransition:
   m_ObjectHideFlags: 1
@@ -384,8 +319,7 @@ AnimatorState:
   - {fileID: -8147978909721593209}
   - {fileID: -4728605434362109791}
   - {fileID: -1933939427863239102}
-  m_StateMachineBehaviours:
-  - {fileID: -6265916483837505561}
+  m_StateMachineBehaviours: []
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
   m_WriteDefaultValues: 0
@@ -507,12 +441,6 @@ AnimatorController:
     m_DefaultInt: 0
     m_DefaultBool: 0
     m_Controller: {fileID: 9100000}
-  - m_Name: UpperBodyWeight
-    m_Type: 1
-    m_DefaultFloat: 0
-    m_DefaultInt: 0
-    m_DefaultBool: 0
-    m_Controller: {fileID: 9100000}
   - m_Name: Speed
     m_Type: 1
     m_DefaultFloat: 0
@@ -606,7 +534,6 @@ AnimatorState:
   - {fileID: -7901121191146835858}
   m_StateMachineBehaviours:
   - {fileID: -6409377423750732024}
-  - {fileID: -5187177232854285337}
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
   m_WriteDefaultValues: 1
@@ -633,8 +560,7 @@ AnimatorState:
   m_CycleOffset: 0
   m_Transitions:
   - {fileID: 5216831928805494467}
-  m_StateMachineBehaviours:
-  - {fileID: 6250879492315747716}
+  m_StateMachineBehaviours: []
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
   m_WriteDefaultValues: 1
@@ -748,7 +674,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AttackStateWindow
   weapon: 0
-  strength: 1
+  strength: 2
   windowStart: 0.3
   windowEnd: 0.45
 --- !u!1102 &3682088699113788292
@@ -765,7 +691,6 @@ AnimatorState:
   - {fileID: -1195462580518557384}
   m_StateMachineBehaviours:
   - {fileID: -7659946710041045627}
-  - {fileID: -3760343295812542273}
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
   m_WriteDefaultValues: 0
@@ -916,22 +841,6 @@ BlendTree:
   m_UseAutomaticThresholds: 1
   m_NormalizedBlendValues: 0
   m_BlendType: 0
---- !u!114 &6250879492315747716
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3da7b9cb0a26414b97671f8dafff41a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AttackLayerWeight
-  onEnter: 1
-  onExit: 0
-  blendIn: 0.06
-  blendOut: 0.12
 --- !u!1107 &6625012302171200253
 AnimatorStateMachine:
   serializedVersion: 6

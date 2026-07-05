@@ -18,8 +18,13 @@ public class DiagnosticsHUD : MonoBehaviour
     public float probeYOffset = 1.1f;
     public LayerMask enemyLayer;
 
+    [Header("Config")]
+    [Tooltip("В билде HUD показывается только если в GameConfig включён showDiagnosticsHUD")]
+    public GameConfig config;
+
     private Vector3 _prevPos;
     private float _velY;
+    private readonly Collider[] _probeHits = new Collider[16];
 
     private void Reset()
     {
@@ -38,7 +43,9 @@ public class DiagnosticsHUD : MonoBehaviour
 
     private void OnGUI()
     {
-        const int pad = 8;
+        // В билде — только по флагу из конфига; в редакторе показываем всегда
+        if (!Application.isEditor && (config == null || !config.showDiagnosticsHUD)) return;
+
         int x = 10, y = 10, lh = 20;
 
         GUI.Label(new Rect(x,y,600,lh), "=== SmashArena Diagnostics ==="); y+=lh;
@@ -75,19 +82,19 @@ public class DiagnosticsHUD : MonoBehaviour
         // Input
         if (playerInput)
         {
-            var actMove = playerInput.actions.FindAction("Move", false);
-            var actJump = playerInput.actions.FindAction("Jump", false);
-            var actP    = playerInput.actions.FindAction("AttackPunch", false);
-            var actS    = playerInput.actions.FindAction("AttackOneHandSword", false);
+            var actMove  = playerInput.actions.FindAction("Move", false);
+            var actL     = playerInput.actions.FindAction("Attack_Light", false);
+            var actH     = playerInput.actions.FindAction("Attack_Heavy", false);
+            var actBlock = playerInput.actions.FindAction("Block", false);
             Vector2 mv = actMove!=null ? actMove.ReadValue<Vector2>() : Vector2.zero;
-            GUI.Label(new Rect(x,y,800,lh), $"Input: Move=({mv.x:F2},{mv.y:F2}) | Jump={(actJump!=null && actJump.triggered)} | Punch={(actP!=null && actP.triggered)} | Sword={(actS!=null && actS.triggered)}"); y+=lh;
+            GUI.Label(new Rect(x,y,800,lh), $"Input: Move=({mv.x:F2},{mv.y:F2}) | Light={(actL!=null && actL.triggered)} | Heavy={(actH!=null && actH.triggered)} | Block={(actBlock!=null && actBlock.IsPressed())}"); y+=lh;
         }
 
         // Attack overlap probe
         if (hitOrigin)
         {
             Vector3 c = hitOrigin.position + hitOrigin.forward * probeRange + Vector3.up * probeYOffset;
-            int count = Physics.OverlapSphere(c, probeRadius, enemyLayer, QueryTriggerInteraction.Collide).Length;
+            int count = Physics.OverlapSphereNonAlloc(c, probeRadius, _probeHits, enemyLayer, QueryTriggerInteraction.Collide);
             GUI.Label(new Rect(x,y,800,lh), $"AttackProbe: center={c} radius={probeRadius:F2} hits={count}"); y+=lh;
         }
     }

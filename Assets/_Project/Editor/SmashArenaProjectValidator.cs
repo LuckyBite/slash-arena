@@ -29,7 +29,7 @@ public class SmashArenaProjectValidator : EditorWindow
         string[] playerParams =
         {
             "Speed","MoveX","MoveY","isMoving","isGrounded",
-            "Attack_Punch","Attack_OneHandSword"
+            "Attack_Light","Attack_Heavy","Kick","Block","Dodge"
         };
         if (anim)
         {
@@ -60,7 +60,7 @@ public class SmashArenaProjectValidator : EditorWindow
         // Input map базовые действия
         if (pia)
         {
-            string[] actions = { "Move", "Jump", "AttackPunch", "AttackOneHandSword" };
+            string[] actions = { "Move", "Sprint", "Attack_Light", "Attack_Heavy", "Kick", "Block", "Dodge" };
             foreach (var a in actions)
                 if (pia.actions.FindAction(a, throwIfNotFound:false) == null)
                     Debug.LogError($"[PlayerInput] Нет action: {a}");

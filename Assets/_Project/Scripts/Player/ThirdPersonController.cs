@@ -28,16 +28,15 @@ public class ThirdPersonController : MonoBehaviour
     public float animDampGround = 0.02f;
     public float animDampIdle   = 0.10f;
 
-    [Header("Jump & Gravity (by metrics)")]
-    [Tooltip("Высота прыжка (м)")]
-    public float jumpHeight = 1.6f;
-    [SerializeField] private bool jumpEnabled = false;
-    [Tooltip("Время до апекса (сек) — меньше = быстрее и «тяжелее»")]
-    public float timeToApex = 0.33f;
-    [Tooltip("Мин. интервал между стартами прыжка (сек). Нужен, чтобы спам пробела не триггерил прыжок повторно до отрыва.")]
-    [SerializeField] private float jumpCooldown = 0.25f;
+    [Header("Gravity")]
+    [Tooltip("Гравитация (м/с²), отрицательная")]
+    [SerializeField] private float gravity = -30f;
     [Tooltip("Прилипание к земле")]
     public float groundStick = -2f;
+
+    [Header("Block")]
+    [Tooltip("Множитель скорости движения при зажатом блоке")]
+    [SerializeField] private float blockMoveMultiplier = 0.4f;
 
     [Header("Ground Check")]
     [Tooltip("Радиус сферы у ног")]
@@ -49,17 +48,12 @@ public class ThirdPersonController : MonoBehaviour
     [Tooltip("Если завис в воздухе без движения дольше этого времени — мягко сбросить velocity и попробовать переприжать")]
     [SerializeField] private float airStuckRecoverTime = 1.5f;
 
-    [Header("Coyote / Buffer")]
-    [Tooltip("Время после схода с края, когда прыжок ещё возможен")]
-    public float coyoteTime = 0.12f;
-    [Tooltip("Буфер нажатия прыжка ДО касания земли")]
-    public float jumpBufferTime = 0.12f;
+    [Header("Air")]
     [Tooltip("Разрешать управление в воздухе")]
     public bool allowAirControl = false;
 
     [Header("Input Action Names (как в твоём Input Actions)")]
     public string actionMove = "Move";
-    public string actionJump = "Jump";
     public string actionSprint = "Sprint";
     public string pMoveX = "MoveX";
     public string pMoveY = "MoveY";
@@ -70,7 +64,6 @@ public class ThirdPersonController : MonoBehaviour
     public string pTrigHeavy = "Attack_Heavy";
     public string pTrigKick  = "Kick";
     public string pBoolBlock = "Block";
-    public string pTrigJump  = "Jump";
     public string pTrigDodge = "Dodge";
 
     public string actionAttackLight = "Attack_Light";
@@ -82,26 +75,26 @@ public class ThirdPersonController : MonoBehaviour
     [Header("UpperBody / Attacks")]
     public int   upperBodyLayerIndex = 1;
     public float attackCooldown = 0.35f;
-    public float postAttackBlendHold = 0.14f; // ЧУТЬ УВЕЛИЧИЛ: фикс редкого микро-idle
+    [Tooltip("После конца атаки анимация движения форсируется без демпфера столько секунд (сглаживает выход из удара в бег)")]
+    public float postAttackBlendHold = 0.14f;
 
     // runtime
     private CharacterController cc;
     private PlayerInput pi;
     private Vector2 moveInput;
     private bool sprintHeld;
+    private bool blockHeld;
     private Vector3 velocity;
     private float rotVel;
     private bool grounded;
     private float lastGroundTime = -999f;
-    private float lastJumpPressedTime = -999f; // буфер нажатия прыжка
-    private float lastJumpStartedTime = -999f;
     private float dodgeUntil = -1f;
     private float dodgeCooldownUntil = -1f;
     private Vector3 dodgeDirection;
     private bool IsDodging => Time.time < dodgeUntil;
 
-    private float gravity;      // высчитываем из метрик
-    private float jumpVelocity; // высчитываем из метрик
+    /// <summary>Игрок держит блок (для PlayerHealth и др.).</summary>
+    public bool IsBlocking => blockHeld;
 
     private float nextAttackAllowed = -1f;
     private bool isAttackLocked = false;
@@ -110,8 +103,7 @@ public class ThirdPersonController : MonoBehaviour
     private float _airStuckTimer;
 
     // animator hashes
-    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hJump, hDodge;
-    private static readonly int H_UPPER_EMPTY = Animator.StringToHash("Upper_Empty");
+    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hDodge;
 
     private void Awake()
     {
@@ -120,10 +112,6 @@ public class ThirdPersonController : MonoBehaviour
 
         if (!animator) Debug.LogError("[ThirdPersonController] Animator не назначен.");
         if (!cameraTransform && Camera.main) cameraTransform = Camera.main.transform;
-
-        // Физика прыжка из метрик
-        gravity      = -2f * jumpHeight / (timeToApex * timeToApex);
-        jumpVelocity =  2f * jumpHeight /  timeToApex;
 
         // Animator hashes
         hMoveX      = Animator.StringToHash(pMoveX);
@@ -135,14 +123,12 @@ public class ThirdPersonController : MonoBehaviour
         hHeavy      = Animator.StringToHash(pTrigHeavy);
         hKick       = Animator.StringToHash(pTrigKick);
         hBlock      = Animator.StringToHash(pBoolBlock);
-        hJump       = Animator.StringToHash(pTrigJump);
         hDodge      = Animator.StringToHash(pTrigDodge);
 
         // Привязка инпута (Invoke C# Events)
         var map = pi.actions;
         map[actionMove].performed += OnMove;
         map[actionMove].canceled  += OnMove;
-        map[actionJump].performed += OnJump;
         map[actionSprint].performed += OnSprintPerformed;
         map[actionSprint].canceled  += OnSprintCanceled;
         map[actionAttackLight].performed += OnAttackLight;
@@ -162,7 +148,6 @@ public class ThirdPersonController : MonoBehaviour
             {
                 map[actionMove].performed -= OnMove;
                 map[actionMove].canceled  -= OnMove;
-                map[actionJump].performed -= OnJump;
                 map[actionSprint].performed -= OnSprintPerformed;
                 map[actionSprint].canceled  -= OnSprintCanceled;
                 map[actionAttackLight].performed -= OnAttackLight;
@@ -179,6 +164,8 @@ public class ThirdPersonController : MonoBehaviour
     {
         if (hasFocus) return;
         sprintHeld = false;
+        blockHeld = false;
+        if (animator) animator.SetBool(hBlock, false);
         moveInput = Vector2.zero;
     }
 
@@ -239,7 +226,6 @@ public class ThirdPersonController : MonoBehaviour
 
         if (!wasGrounded && grounded)
         {
-            if (animator) animator.ResetTrigger(hJump);
             velocity.y = groundStick;
         }
 
@@ -298,13 +284,16 @@ public class ThirdPersonController : MonoBehaviour
             return;
         }
 
-        float currentSpeed = moveSpeed * (sprintHeld && grounded ? sprintMultiplier : 1f);
-        cc.Move(desired * currentSpeed * Time.deltaTime);
+        // Блок побеждает спринт: под блоком двигаемся медленно
+        float speedMult = blockHeld ? blockMoveMultiplier
+                        : (sprintHeld && grounded ? sprintMultiplier : 1f);
+        cc.Move(desired * (moveSpeed * speedMult) * Time.deltaTime);
 
         if (!animator) return;
 
         bool moveReq = moveInput.sqrMagnitude > 1e-4f;
         bool runNow  = grounded && moveReq;
+        bool sprintAnim = sprintHeld && !blockHeld;
         Vector3 local = transform.InverseTransformDirection(desired);
 
         // «Холд» после удара — форсируем бег, даже если ещё не «схлопнулся» бленд
@@ -312,7 +301,7 @@ public class ThirdPersonController : MonoBehaviour
         {
             animator.SetFloat(hMoveX, local.x);
             animator.SetFloat(hMoveY, local.z);
-            animator.SetFloat(hSpeed,  runNow ? (sprintHeld ? 1.5f : 1f) : 0f);
+            animator.SetFloat(hSpeed,  runNow ? (sprintAnim ? 1.5f : 1f) : 0f);
             animator.SetBool (hIsMoving, runNow);
             return;
         }
@@ -320,19 +309,12 @@ public class ThirdPersonController : MonoBehaviour
         float damp = runNow ? animDampGround : animDampIdle;
         animator.SetFloat(hMoveX, local.x, damp, Time.deltaTime);
         animator.SetFloat(hMoveY, local.z, damp, Time.deltaTime);
-        animator.SetFloat(hSpeed,  runNow ? (sprintHeld ? 1.5f : 1f) : 0f, damp, Time.deltaTime);
+        animator.SetFloat(hSpeed,  runNow ? (sprintAnim ? 1.5f : 1f) : 0f, damp, Time.deltaTime);
         animator.SetBool (hIsMoving, runNow);
     }
 
     // ===== Input =====
     private void OnMove(InputAction.CallbackContext ctx) => moveInput = ctx.ReadValue<Vector2>();
-
-    private void OnJump(InputAction.CallbackContext ctx)
-    {
-        if (!ctx.performed) return;
-        lastJumpPressedTime = Time.time; // буферим нажатие
-        DoJumpIfAllowed();
-    }
 
     private void OnSprintPerformed(InputAction.CallbackContext ctx) => sprintHeld = true;
     private void OnSprintCanceled(InputAction.CallbackContext ctx)  => sprintHeld = false;
@@ -368,32 +350,6 @@ public class ThirdPersonController : MonoBehaviour
         }
     }
 
-    // ===== Jump =====
-    private void DoJumpIfAllowed()
-    {
-        if (!jumpEnabled) return;
-        if (Time.time - lastJumpStartedTime < jumpCooldown) return;
-
-        bool canUseCoyote = (Time.time - lastGroundTime) <= coyoteTime;
-        bool canUseBuffer = (Time.time - lastJumpPressedTime) <= jumpBufferTime;
-
-        bool canJump = grounded || canUseCoyote;
-        if (!canJump || !canUseBuffer) return;
-
-        velocity.y = jumpVelocity;
-        lastJumpPressedTime = -999f;
-        lastGroundTime = -999f;
-
-        // Anim: триггерим прыжок
-        if (animator)
-        {
-            animator.ResetTrigger(hJump);
-            animator.SetTrigger(hJump);
-        }
-
-        lastJumpStartedTime = Time.time;
-    }
-
     // ===== Attacks =====
     private void OnAttackLight(InputAction.CallbackContext ctx)
     {
@@ -415,13 +371,13 @@ public class ThirdPersonController : MonoBehaviour
 
     private void OnBlockPerformed(InputAction.CallbackContext ctx)
     {
-        Debug.Log("[Block] performed");
+        blockHeld = true;
         if (animator) animator.SetBool(hBlock, true);
     }
 
     private void OnBlockCanceled(InputAction.CallbackContext ctx)
     {
-        Debug.Log("[Block] canceled");
+        blockHeld = false;
         if (animator) animator.SetBool(hBlock, false);
     }
 
@@ -445,16 +401,13 @@ public class ThirdPersonController : MonoBehaviour
     {
         if (animator == null || animator.layerCount <= upperBodyLayerIndex) return false;
         // Самая надёжная проверка: есть ли в текущем стейте верхнего слоя НАЗНАЧЕННЫЙ клип.
-        // У Upper_Empty Motion = None → ClipInfo.Length == 0 → значит активен empty → weight в 0.
-        // У LightAttack/HeavyAttack/Block/Kick клип есть → ClipInfo.Length > 0 → weight в 1.
-        var clipInfo = animator.GetCurrentAnimatorClipInfo(upperBodyLayerIndex);
-        if (clipInfo != null && clipInfo.Length > 0) return true;
+        // У Upper_Empty Motion = None → clip count == 0 → значит активен empty → weight в 0.
+        // У LightAttack/HeavyAttack/Block/Kick клип есть → clip count > 0 → weight в 1.
+        // Count-версии не аллоцируют (в отличие от GetCurrentAnimatorClipInfo).
+        if (animator.GetCurrentAnimatorClipInfoCount(upperBodyLayerIndex) > 0) return true;
         // На время transition тоже учитываем
-        if (animator.IsInTransition(upperBodyLayerIndex))
-        {
-            var nextClipInfo = animator.GetNextAnimatorClipInfo(upperBodyLayerIndex);
-            if (nextClipInfo != null && nextClipInfo.Length > 0) return true;
-        }
+        if (animator.IsInTransition(upperBodyLayerIndex)
+            && animator.GetNextAnimatorClipInfoCount(upperBodyLayerIndex) > 0) return true;
         return false;
     }
 

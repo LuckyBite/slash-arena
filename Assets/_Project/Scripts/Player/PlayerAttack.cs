@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public enum WeaponType { Fist, Sword /* потом: Greatsword, Mace, Axe, ... */ }
-public enum AttackStrength { Light, Heavy }
+public enum AttackStrength { Light, Heavy, Kick } // Kick не зависит от оружия — бьём ногой
 
 [System.Serializable]
 public struct HitShape
@@ -34,6 +34,10 @@ public class PlayerAttack : MonoBehaviour
     [Header("Weapon Profiles")]
     public WeaponConfig fist  = new WeaponConfig();
     public WeaponConfig sword = new WeaponConfig();
+
+    [Header("Kick (общий для всех оружий)")]
+    [Tooltip("Хитшейп удара ногой — не зависит от оружия в руках")]
+    public HitShape kick = new HitShape(12, 1.0f, 0.4f, 0.9f);
 
     [Header("Timing")]
     [Tooltip("Если ON — урон ждёт Animation Event (AnimEvent_DoHit). Если OFF — по нажатию/окну.")]
@@ -85,6 +89,7 @@ public class PlayerAttack : MonoBehaviour
 
     private HitShape SelectShape(WeaponType weapon, AttackStrength strength)
     {
+        if (strength == AttackStrength.Kick) return kick;
         WeaponConfig cfg = weapon == WeaponType.Fist ? fist : sword;
         return strength == AttackStrength.Light ? cfg.light : cfg.heavy;
     }
@@ -116,14 +121,16 @@ public class PlayerAttack : MonoBehaviour
             var col = _hits[i];
             if (!col) continue;
 
-            var eh = col.GetComponentInParent<EnemyHealth>();
-            if (eh == null) continue;
+            // Бьём любого, кто умеет получать урон (IDamageable), а не только EnemyHealth
+            var dmg = col.GetComponentInParent<IDamageable>();
+            if (dmg == null) continue;
 
-            int id = eh.GetInstanceID();
+            var comp = dmg as Component;
+            int id = comp ? comp.GetInstanceID() : dmg.GetHashCode();
             if (_damagedIds.Contains(id)) continue; // тот же враг уже получал урон этим свингом
 
             _damagedIds.Add(id);
-            eh.TakeDamage(shape.damage);
+            dmg.TakeDamage(shape.damage);
         }
     }
 
