@@ -208,6 +208,15 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Dodge"",
+                    ""type"": ""Button"",
+                    ""id"": ""9e1958f1-c4f9-4036-a0d8-a277ab12394b"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -505,6 +514,17 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Look"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""cac569c7-fd69-42f6-af1b-c04572c42e15"",
+                    ""path"": ""<Keyboard>/leftAlt"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Dodge"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1085,6 +1105,7 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
         m_Player_Attack_Heavy = m_Player.FindAction("Attack_Heavy", throwIfNotFound: true);
         m_Player_Block = m_Player.FindAction("Block", throwIfNotFound: true);
         m_Player_Kick = m_Player.FindAction("Kick", throwIfNotFound: true);
+        m_Player_Dodge = m_Player.FindAction("Dodge", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1190,6 +1211,7 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Attack_Heavy;
     private readonly InputAction m_Player_Block;
     private readonly InputAction m_Player_Kick;
+    private readonly InputAction m_Player_Dodge;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1253,6 +1275,10 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/Kick".
         /// </summary>
         public InputAction @Kick => m_Wrapper.m_Player_Kick;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/Dodge".
+        /// </summary>
+        public InputAction @Dodge => m_Wrapper.m_Player_Dodge;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1318,6 +1344,9 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
             @Kick.started += instance.OnKick;
             @Kick.performed += instance.OnKick;
             @Kick.canceled += instance.OnKick;
+            @Dodge.started += instance.OnDodge;
+            @Dodge.performed += instance.OnDodge;
+            @Dodge.canceled += instance.OnDodge;
         }
 
         /// <summary>
@@ -1368,6 +1397,9 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
             @Kick.started -= instance.OnKick;
             @Kick.performed -= instance.OnKick;
             @Kick.canceled -= instance.OnKick;
+            @Dodge.started -= instance.OnDodge;
+            @Dodge.performed -= instance.OnDodge;
+            @Dodge.canceled -= instance.OnDodge;
         }
 
         /// <summary>
@@ -1748,6 +1780,13 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnKick(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Dodge" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnDodge(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

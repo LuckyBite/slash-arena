@@ -16,6 +16,14 @@ public class ThirdPersonController : MonoBehaviour
     public float moveSpeed = 5f;
     [Tooltip("Множитель скорости при зажатом Sprint")]
     [SerializeField] private float sprintMultiplier = 1.7f;
+
+    [Header("Dodge / Roll")]
+    [Tooltip("Скорость импульса во время переката (м/с)")]
+    [SerializeField] private float dodgeImpulse = 8f;
+    [Tooltip("Длительность импульса (сек) — должна быть короче клипа Roll")]
+    [SerializeField] private float dodgeDuration = 0.30f;
+    [Tooltip("Кулдаун между перекатами (сек)")]
+    [SerializeField] private float dodgeCooldown = 0.80f;
     public float rotationSmoothTime = 0.10f;
     public float animDampGround = 0.02f;
     public float animDampIdle   = 0.10f;
@@ -63,11 +71,13 @@ public class ThirdPersonController : MonoBehaviour
     public string pTrigKick  = "Kick";
     public string pBoolBlock = "Block";
     public string pTrigJump  = "Jump";
+    public string pTrigDodge = "Dodge";
 
     public string actionAttackLight = "Attack_Light";
     public string actionAttackHeavy = "Attack_Heavy";
     public string actionBlock       = "Block";
     public string actionKick        = "Kick";
+    public string actionDodge = "Dodge";
 
     [Header("UpperBody / Attacks")]
     public int   upperBodyLayerIndex = 1;
@@ -85,6 +95,10 @@ public class ThirdPersonController : MonoBehaviour
     private float lastGroundTime = -999f;
     private float lastJumpPressedTime = -999f; // буфер нажатия прыжка
     private float lastJumpStartedTime = -999f;
+    private float dodgeUntil = -1f;
+    private float dodgeCooldownUntil = -1f;
+    private Vector3 dodgeDirection;
+    private bool IsDodging => Time.time < dodgeUntil;
 
     private float gravity;      // высчитываем из метрик
     private float jumpVelocity; // высчитываем из метрик
@@ -96,7 +110,7 @@ public class ThirdPersonController : MonoBehaviour
     private float _airStuckTimer;
 
     // animator hashes
-    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hJump;
+    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hJump, hDodge;
     private static readonly int H_UPPER_EMPTY = Animator.StringToHash("Upper_Empty");
 
     private void Awake()
@@ -122,6 +136,7 @@ public class ThirdPersonController : MonoBehaviour
         hKick       = Animator.StringToHash(pTrigKick);
         hBlock      = Animator.StringToHash(pBoolBlock);
         hJump       = Animator.StringToHash(pTrigJump);
+        hDodge      = Animator.StringToHash(pTrigDodge);
 
         // Привязка инпута (Invoke C# Events)
         var map = pi.actions;
@@ -135,6 +150,7 @@ public class ThirdPersonController : MonoBehaviour
         map[actionKick].performed += OnKick;
         map[actionBlock].performed += OnBlockPerformed;
         map[actionBlock].canceled  += OnBlockCanceled;
+        map[actionDodge].performed += OnDodge;
     }
 
     private void OnDestroy()
@@ -154,6 +170,7 @@ public class ThirdPersonController : MonoBehaviour
                 map[actionKick].performed -= OnKick;
                 map[actionBlock].performed -= OnBlockPerformed;
                 map[actionBlock].canceled  -= OnBlockCanceled;
+                map[actionDodge].performed -= OnDodge;
             }
         }
     }
@@ -267,6 +284,20 @@ public class ThirdPersonController : MonoBehaviour
             transform.rotation = Quaternion.Euler(0f, y, 0f);
         }
 
+        // Override движения во время Roll
+        if (IsDodging)
+        {
+            cc.Move(dodgeDirection * dodgeImpulse * Time.deltaTime);
+            // Animator: передаём last input для Roll Blend Tree
+            if (animator)
+            {
+                Vector3 localDodge = transform.InverseTransformDirection(dodgeDirection);
+                animator.SetFloat(hMoveX, localDodge.x);
+                animator.SetFloat(hMoveY, localDodge.z);
+            }
+            return;
+        }
+
         float currentSpeed = moveSpeed * (sprintHeld && grounded ? sprintMultiplier : 1f);
         cc.Move(desired * currentSpeed * Time.deltaTime);
 
@@ -305,6 +336,37 @@ public class ThirdPersonController : MonoBehaviour
 
     private void OnSprintPerformed(InputAction.CallbackContext ctx) => sprintHeld = true;
     private void OnSprintCanceled(InputAction.CallbackContext ctx)  => sprintHeld = false;
+
+    private void OnDodge(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.performed) return;
+        if (Time.time < dodgeCooldownUntil) return;
+        if (!grounded) return;
+        if (IsDodging) return;
+
+        // Направление переката: если игрок двигается — по input, иначе назад
+        Vector3 dir;
+        if (moveInput.sqrMagnitude > 1e-4f && cameraTransform)
+        {
+            Vector3 f = cameraTransform.forward; f.y = 0; f.Normalize();
+            Vector3 r = cameraTransform.right;   r.y = 0; r.Normalize();
+            dir = (f * moveInput.y + r * moveInput.x).normalized;
+        }
+        else
+        {
+            dir = -transform.forward;
+        }
+
+        dodgeDirection = dir;
+        dodgeUntil = Time.time + dodgeDuration;
+        dodgeCooldownUntil = Time.time + dodgeCooldown;
+
+        if (animator)
+        {
+            animator.ResetTrigger(hDodge);
+            animator.SetTrigger(hDodge);
+        }
+    }
 
     // ===== Jump =====
     private void DoJumpIfAllowed()
@@ -365,6 +427,7 @@ public class ThirdPersonController : MonoBehaviour
 
     private void TryAttack(int trigHash)
     {
+        if (IsDodging) return;
         if (Time.time < nextAttackAllowed) return;
         if (isAttackLocked || IsUpperAttackPlaying()) return;
 

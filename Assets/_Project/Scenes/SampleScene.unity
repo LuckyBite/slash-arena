@@ -1795,8 +1795,11 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 64
-  moveSpeed: 5
-  sprintMultiplier: 1.7
+  moveSpeed: 4
+  sprintMultiplier: 1.8
+  dodgeImpulse: 8
+  dodgeDuration: 0.3
+  dodgeCooldown: 0.8
   rotationSmoothTime: 0.1
   animDampGround: 0.02
   animDampIdle: 0.1
@@ -1825,10 +1828,12 @@ MonoBehaviour:
   pTrigKick: Kick
   pBoolBlock: Block
   pTrigJump: Jump
+  pTrigDodge: Dodge
   actionAttackLight: Attack_Light
   actionAttackHeavy: Attack_Heavy
   actionBlock: Block
   actionKick: Kick
+  actionDodge: Dodge
   upperBodyLayerIndex: 1
   attackCooldown: 0.4
   postAttackBlendHold: 0.25
