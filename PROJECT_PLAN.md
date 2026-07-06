@@ -250,16 +250,20 @@ Assets/
 
 ## 6. Текущий статус
 
-**Этап 0 — Стабилизация: 🔄 код выполнен (2026-07-06), ждёт проверки в редакторе.**
+**Этапы 0–4: код выполнен полностью (2026-07-06), ждёт валидации владельцем в редакторе.**
 
-| Шаг | Статус |
-|---|---|
-| Старый фундамент (git, структура, GameConfig) — бывш. Фаза 0 | ✅ (2026-05-04) |
-| Мувмент-комплект: бег/спринт/перекат/удары/блок — бывш. Фаза 1–1.5 | ✅ (анимации), код добит в Этапе 0 |
-| Этап 0: код (блок, кик, очки, IDamageable, перф, чистка) | ✅ (2026-07-06) |
-| Этап 0: editor-проверка (клип кика, валидатор, плейтест) | ⬜ владелец |
+| Этап | Код | Editor-работа владельца |
+|---|---|---|
+| 0 — Стабилизация | ✅ | клип кика, валидатор, плейтест |
+| 1 — Ощущение боя | ✅ | звуковые клипы по слотам (всё работает и без них — просто тихо) |
+| 2 — Оружие + прочность | ✅ | RightHandSocket на кость руки, префабы оружия PurePoly в ассеты, HUD-элементы |
+| 3 — Волны | ✅ | TMP-текст «Волна N» на Canvas → слот GameManager.waveText |
+| 4 — Меню + гардероб + сейвы | ✅ | материалы скинов (перекраска палитры), кнопка «В меню» на game over |
+| 5 — Полировка и билд | ⬜ | не начат (пауза, настройки, билд) |
 
-**Следующий этап:** 1 — Ощущение боя (game feel + звук).
+Полный чеклист editor-работ — в журнале за 2026-07-06 (внизу).
+
+**Коммиты этапов 1–4 локальные, НЕ запушены — ждут валидации владельца.**
 
 ---
 
@@ -283,19 +287,31 @@ Assets/
 - **2026-07-06.** Аудит кода (Claude Code). Найдено: 3 конкурирующие системы веса UpperBody-слоя (SMB + скрипт + мёртвый параметр), блок и кик — декорации, очки не начислялись, `GameConfig`/`IDamageable`/`Hurtbox` не использовались, `EnemyAtack.cs` мёртв, R рестартил бой, аллокации `GetCurrentAnimatorClipInfo` каждый кадр, `SetDestination` каждый кадр у всех врагов. Также выяснено: параметры `Speed`/`isMoving` аниматором **не используются** (движение только на MoveX/MoveY) — спринт визуально не отличается от бега, взять в Этап 1.
 - **2026-07-06.** **Зафиксировано видение игры** (владелец): (1) главное меню + гардероб; (2) бесконечный слешер с волнами, souls-like управление, звук; (3) оружие спавнится по карте, имеет прочность — надо успевать искать новое; (4) классы/онлайн/карты — потом. Дорожная карта переписана на Этапы 0–5. Прыжок удалён из кода (D6).
 - **2026-07-06.** **Этап 0 выполнен кодом** (Claude Code): честный блок (70% поглощения, замедление 0.4, без спринта), кик со своим хитшейпом (`AttackStrength.Kick`), очки через `RegisterKill`+`GameConfig`, `IDamageable` вместо `SendMessage`, единый вес UpperBody (SMB `AttackLayerWeight` удалён из аниматора и проекта), удалены `EnemyAtack.cs`/`Hurtbox.cs`, `EnemyAI` оптимизирован (repath 0.2 с, Medium avoidance), аниматор-проверки без аллокаций, R-рестарт только на game over, курсор разблокируется на смерти, валидатор/HUD обновлены, конфиг привязан в сцене. Editor-хвост: назначить клип кика (Mixamo Roundhouse Kick) в стейт `Kick`.
+- **2026-07-06 (вечер).** Инцидент: редактор открылся версией 6000.5.2f1 и сломал компиляцию пакетов (`GetInstanceID` стал error-obsolete в Cinemachine/AI-пакетах). Решение владельца: остаёмся на **6000.2.10f1**, апгрейд-файлы откатили. Правило: версию движка среди этапа не меняем.
+- **2026-07-06 (автономная сессия).** **Этапы 1–4 выполнены кодом** (Claude Code), коммиты локальные до валидации владельца:
+  - **Этап 1:** смерть врагов через `Die`/`isDead` демо-контроллера скелета + отключение AI/агента/коллайдеров + отложенный Destroy; `EnemyAI` теперь водит `isWalking` (раньше писал в несуществующий `Speed` — ходьба врагов не анимировалась!); i-frames на перекате; слоты звуков ВЕЗДЕ (шаги, замах/попадание, блок, урон, смерти, атака врага) — пустой слот молчит; хитстоп на тяжёлых попаданиях; спринт визуально ускоряет клип бега (параметр `SprintMult` → множитель скорости стейта Movement).
+  - **Этап 2:** `WeaponDefinition` (SO, статы+прочность+слоты префаба/аниматора/звуков) + ассеты `Weapon_Sword` (25 хитов) и `Weapon_Axe` (сильнее, 15 хитов); `WeaponHolder` (экип/поломка/прочность, визуал в сокет руки, Override Controller); `WeaponPickup`+`WeaponSpawner` (точки по карте или случайные на NavMesh, кубик-заглушка вместо модели); `PlayerInteractor` (**F** — Hold-интеракция убрана); `PlayerAttack` берёт статы из текущего оружия (кулаки — фоллбек), прочность тратят только ПОПАДАНИЯ оружием; `WeaponHUD` со слотами.
+  - **Этап 3:** `WaveManager` — бесконечные волны (+2 врага/волну, потолок 40, +12% HP/волну), пауза 6 с, бонус очков за волну, оружие докладывается в начале волны; `EnemySpawner` стал сервисом (`SpawnOne`), непрерывный таймер удалён (D8); `GameManager` — слот `waveText`, трекинг волны.
+  - **Этап 4:** `SaveService` (JSON, D3: bestScore/bestWave/selectedSkin/nickname); `SkinDefinition` + 3 скина (слоты материалов пусты); `SkinApplier` на игроке применяет скин из сейва; сцена `MainMenu` — UI целиком строится кодом (`MainMenuController`): Играть/Гардероб/Выход, листалка скинов, строка рекорда; Build Settings: MainMenu → SampleScene; game over пишет рекорды в сейв и показывает итоги (`gameOverStatsText`), `BackToMenu()`.
+  - **Editor-чеклист владельца (по убыванию важности):** 1) клип кика в стейт `Kick` (Mixamo Roundhouse Kick); 2) плейтест волн и оружия (кубики = пикапы, F — подбор); 3) `RightHandSocket`: пустышка на кости правой кисти → слот `handSocket` у `WeaponHolder` на Player; 4) префабы PurePoly в `handPrefab` ассетов оружия; 5) TMP-тексты на Canvas → слоты `waveText`, `gameOverStatsText` (GameManager) и объект с `WeaponHUD` (имя/прочность/подсказка F); 6) кнопка «В меню» на панели game over → `GameManager.BackToMenu()`; 7) материалы-перекраски → слоты `bodyMaterial` скинов в `Data/Skins`; 8) звуки по слотам (шаги, свисты, попадания, блок, смерти, поломка/подбор оружия); 9) прогнать `Tools ▸ SmashArena ▸ Validate Setup`.
 
 ---
 
-## 8. Что уже есть в коде (актуально на 2026-07-06)
+## 8. Что уже есть в коде (актуально на 2026-07-06, после этапов 0–4)
 
 Скрипты в `Assets/_Project/Scripts/`:
 
-- **Player:** `ThirdPersonController.cs` (движение/спринт/перекат/блок/триггеры атак, вес UpperBody-слоя; прыжка нет — D6), `PlayerAttack.cs` (хитшейпы Fist/Sword × Light/Heavy + Kick, OverlapSphereNonAlloc, урон через `IDamageable`), `PlayerHealth.cs` (`IDamageable`, стартовое HP из GameConfig, поглощение урона блоком).
-- **Enemy:** `EnemyAI.cs` (NavMeshAgent, repath-троттлинг, windup-атака, типизированный урон), `EnemyHealth.cs` (`IDamageable`, HP-bar, очки через GameManager), `EnemySpawner.cs` (прогрессия по времени — в Этапе 3 переедет под WaveManager).
-- **Combat:** `IDamageable.cs`.
-- **Anim:** `AttackStateWindow.cs` (StateMachineBehaviour — окно урона в стейтах атак; единственный источник момента удара).
-- **Core/UI:** `GameManager.cs` (очки, game over, единый рестарт, GameConfig), `BoundaryZone.cs`, `CursorLocker.cs`, `LookAtCamera.cs`, `RestartButtonScript.cs` (R только на game over), `Debug/DiagnosticsHUD.cs`.
-- **Data:** `GameConfig.cs` (+ `Data/Configs/GameConfig.asset`, привязан в сцене).
+- **Player:** `ThirdPersonController.cs` (движение/спринт/перекат/блок, вес UpperBody-слоя, SprintMult; прыжка нет — D6), `PlayerAttack.cs` (статы из WeaponDefinition или кулаки, кик, NonAlloc, sfx-слоты, хитстоп, расход прочности), `PlayerHealth.cs` (`IDamageable`, HP из GameConfig, блок-поглощение, i-frames на перекате, sfx), `PlayerInteractor.cs` (F — подбор), `PlayerFootsteps.cs` (шаги, слоты), `SkinApplier.cs` (скин из сейва).
+- **Combat:** `IDamageable.cs`, `WeaponDefinition.cs` (SO), `WeaponHolder.cs`, `WeaponPickup.cs`, `WeaponSpawner.cs`.
+- **Enemy:** `EnemyAI.cs` (isWalking-анимация, repath-троттлинг, типизированный урон, sfx), `EnemyHealth.cs` (`IDamageable`, смерть с анимацией и отключением, событие Died, HP-множитель волн, sfx), `EnemySpawner.cs` (сервис SpawnOne для WaveManager).
+- **Core:** `WaveManager.cs` (бесконечные волны, D8), `SaveService.cs` (JSON-сейвы, D3).
+- **Anim:** `AttackStateWindow.cs` (окно урона + сигнал замаха; единственный источник момента удара).
+- **UI:** `MainMenuController.cs` (меню+гардероб, UI из кода), `WeaponHUD.cs` (слоты).
+- **Audio:** `Sfx.cs` (one-shot, пустой слот = тишина).
+- **Util:** `AnimatorParams.cs`.
+- **Прочее:** `GameManager.cs` (очки/волны/рекорды/game over/рестарт/в меню), `BoundaryZone.cs`, `CursorLocker.cs`, `LookAtCamera.cs`, `RestartButtonScript.cs` (R только на game over), `Debug/DiagnosticsHUD.cs`.
+- **Data:** `GameConfig.cs` + `GameConfig.asset`; `Data/Weapons/` (Sword, Axe); `Data/Skins/` (3 скина).
 - **Editor:** `SmashArenaProjectValidator.cs` (`Tools ▸ SmashArena ▸ Validate Setup`).
+- **Сцены:** `SampleScene` (арена; на игроке: TPC, PlayerAttack, PlayerHealth, PlayerInput, Footsteps, WeaponHolder, Interactor, SkinApplier; объекты WaveManager и WeaponSpawner), `MainMenu` (меню, UI из кода).
 
 Удалены как мёртвые (2026-07-06): `EnemyAtack.cs`, `Hurtbox.cs`, `AttackLayerWeight.cs`.
