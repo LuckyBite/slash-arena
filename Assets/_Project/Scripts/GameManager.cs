@@ -9,12 +9,20 @@ public class GameManager : MonoBehaviour
     [Header("UI")]
     public GameObject gameOverPanel;
     public TMP_Text scoreText;
+    [Tooltip("Слот: надпись «Волна N» (создай TMP-текст на Canvas и привяжи)")]
+    public TMP_Text waveText;
 
     [Header("Config")]
     [Tooltip("Глобальный конфиг (очки за убийство и т. д.)")]
     [SerializeField] private GameConfig config;
 
     public bool IsGameOver { get; private set; }
+
+    /// <summary>Последняя достигнутая волна (для итогов и рекорда).</summary>
+    public int WaveReached { get; private set; }
+
+    /// <summary>Текущий счёт (для итогов и рекорда).</summary>
+    public int Score => score;
 
     int score;
 
@@ -49,6 +57,17 @@ public class GameManager : MonoBehaviour
     public void RegisterKill()
     {
         AddScore(config != null ? config.scorePerKill : 10);
+    }
+
+    // ===== Волны (вызывает WaveManager) =====
+    public void ReportWaveReached(int wave)
+    {
+        WaveReached = Mathf.Max(WaveReached, wave);
+    }
+
+    public void SetWaveLabel(string text)
+    {
+        if (waveText != null) waveText.text = text;
     }
 
     public void AddScore(int amount)
