@@ -32,8 +32,8 @@ public class PlayerAttack : MonoBehaviour
     public LayerMask enemyLayer;
 
     [Header("Weapon Profiles")]
-    public WeaponConfig fist  = new WeaponConfig();
-    public WeaponConfig sword = new WeaponConfig();
+    [Tooltip("Статы БЕЗ оружия. Статы оружия живут в WeaponDefinition-ассетах")]
+    public WeaponConfig fist = new WeaponConfig();
 
     [Header("Kick (общий для всех оружий)")]
     [Tooltip("Хитшейп удара ногой — не зависит от оружия в руках")]
@@ -76,6 +76,14 @@ public class PlayerAttack : MonoBehaviour
     // де-дупликация врагов за один свинг
     private readonly HashSet<int> _damagedIds = new HashSet<int>();
 
+    // Текущее оружие (может отсутствовать — тогда кулаки)
+    private WeaponHolder holder;
+
+    private void Awake()
+    {
+        holder = GetComponent<WeaponHolder>();
+    }
+
     private void Start()
     {
         if (hitOrigin == null) hitOrigin = transform;
@@ -110,6 +118,14 @@ public class PlayerAttack : MonoBehaviour
     public void OnSwingStarted(AttackStrength strength)
     {
         Vector3 pos = hitOrigin ? hitOrigin.position : transform.position;
+
+        // У оружия может быть свой свист (кроме кика — это нога)
+        if (strength != AttackStrength.Kick && holder != null && holder.HasWeapon && holder.Current.swingClip)
+        {
+            Sfx.Play(holder.Current.swingClip, pos);
+            return;
+        }
+
         switch (strength)
         {
             case AttackStrength.Heavy: Sfx.Play(swingHeavyClip, pos); break;
@@ -121,7 +137,13 @@ public class PlayerAttack : MonoBehaviour
     private HitShape SelectShape(WeaponType weapon, AttackStrength strength)
     {
         if (strength == AttackStrength.Kick) return kick;
-        WeaponConfig cfg = weapon == WeaponType.Fist ? fist : sword;
+
+        // Статы берём из текущего WeaponDefinition; без оружия — кулаки.
+        // (enum weapon оставлен для совместимости с настройками AttackStateWindow)
+        WeaponConfig cfg;
+        if (holder != null && holder.HasWeapon) cfg = holder.CurrentConfig;
+        else cfg = fist;
+
         return strength == AttackStrength.Light ? cfg.light : cfg.heavy;
     }
 
@@ -171,7 +193,15 @@ public class PlayerAttack : MonoBehaviour
     // Попали хотя бы по одному врагу этим свингом
     private void OnHitLanded(Vector3 at, AttackStrength strength)
     {
-        Sfx.Play(hitImpactClip, at);
+        // Звук попадания: у оружия приоритет
+        AudioClip impact = hitImpactClip;
+        if (strength != AttackStrength.Kick && holder != null && holder.HasWeapon && holder.Current.hitClip)
+            impact = holder.Current.hitClip;
+        Sfx.Play(impact, at);
+
+        // Прочность: тратится только попаданиями оружием (кик/кулаки бесплатны)
+        if (strength != AttackStrength.Kick && holder != null && holder.HasWeapon)
+            holder.ConsumeDurability(holder.Current.durabilityLossPerHit);
 
         bool allowHitstop = hitstopSeconds > 0f && (!hitstopHeavyOnly || strength == AttackStrength.Heavy);
         if (allowHitstop && !hitstopActive)

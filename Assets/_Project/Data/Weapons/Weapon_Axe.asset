@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f7e04a2c9b34d0e8a51b6c2d3e4f501, type: 3}
+  m_Name: Weapon_Axe
+  m_EditorClassIdentifier: 
+  id: axe
+  displayName: "Топор"
+  icon: {fileID: 0}
+  handPrefab: {fileID: 0}
+  config:
+    light:
+      damage: 40
+      range: 2.1
+      radius: 0.75
+      verticalOffset: 0.9
+    heavy:
+      damage: 60
+      range: 2.5
+      radius: 0.85
+      verticalOffset: 1
+  maxDurability: 15
+  durabilityLossPerHit: 1
+  overrideController: {fileID: 0}
+  swingClip: {fileID: 0}
+  hitClip: {fileID: 0}
+  pickupClip: {fileID: 0}
+  breakClip: {fileID: 0}
