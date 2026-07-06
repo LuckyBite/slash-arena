@@ -13,15 +13,19 @@ public class AttackStateWindow : StateMachineBehaviour
     [Range(0f, 2f)] public float windowEnd   = 0.45f;
 
     private bool didHit;
+    private PlayerAttack attack; // кэш на время стейта
 
     public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
     {
         didHit = false;
+        attack = animator.GetComponent<PlayerAttack>();
+        if (attack != null)
+            attack.OnSwingStarted(strength); // свист замаха
     }
 
     public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
     {
-        if (didHit) return;
+        if (didHit || attack == null) return;
 
         float t = stateInfo.normalizedTime; // может идти >1 при петлях
         // поддержим окна и в 0..1, и в 1..2 (на всякий случай)
@@ -30,11 +34,7 @@ public class AttackStateWindow : StateMachineBehaviour
 
         if (!inWindow) return;
 
-        var attack = animator.GetComponent<PlayerAttack>();
-        if (attack != null)
-        {
-            attack.ImmediateAttack(weapon, strength); // нанесём урон один раз
-            didHit = true;
-        }
+        attack.ImmediateAttack(weapon, strength); // нанесём урон один раз
+        didHit = true;
     }
 }

@@ -780,7 +780,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &153501722
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1771,6 +1771,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: de13a7420582ded45a8d7d3f96889aca, type: 3}
       insertIndex: -1
       addedObject: {fileID: 405037090}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: de13a7420582ded45a8d7d3f96889aca, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 900000104}
   m_SourcePrefab: {fileID: 100100000, guid: de13a7420582ded45a8d7d3f96889aca, type: 3}
 --- !u!4 &405037083 stripped
 Transform:
@@ -1803,20 +1806,15 @@ MonoBehaviour:
   rotationSmoothTime: 0.1
   animDampGround: 0.02
   animDampIdle: 0.1
-  jumpHeight: 1.5
-  jumpEnabled: 0
-  timeToApex: 0.33
-  jumpCooldown: 0.25
+  gravity: -30
   groundStick: -2
+  blockMoveMultiplier: 0.4
   groundProbeRadius: 0.25
   groundCastDistance: 0.5
   groundedGrace: 0.03
   airStuckRecoverTime: 1.5
-  coyoteTime: 0.12
-  jumpBufferTime: 0.12
   allowAirControl: 1
   actionMove: Move
-  actionJump: Jump
   actionSprint: Sprint
   pMoveX: MoveX
   pMoveY: MoveY
@@ -1827,7 +1825,6 @@ MonoBehaviour:
   pTrigHeavy: Attack_Heavy
   pTrigKick: Kick
   pBoolBlock: Block
-  pTrigJump: Jump
   pTrigDodge: Dodge
   actionAttackLight: Attack_Light
   actionAttackHeavy: Attack_Heavy
@@ -1877,6 +1874,7 @@ MonoBehaviour:
   maxHealth: 100
   healthSlider: {fileID: 457138512}
   config: {fileID: 11400000, guid: bf0e39aa3a77a2447a33a0a543adb6c3, type: 2}
+  blockDamageAbsorb: 0.7
 --- !u!114 &405037088
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1915,6 +1913,11 @@ MonoBehaviour:
       range: 2.4
       radius: 0.8
       verticalOffset: 1
+  kick:
+    damage: 12
+    range: 1
+    radius: 0.4
+    verticalOffset: 0.9
   useAnimationEvents: 0
   drawGizmos: 1
   debugLog: 0
@@ -1951,6 +1954,18 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   config: {fileID: 11400000, guid: bf0e39aa3a77a2447a33a0a543adb6c3, type: 2}
+--- !u!114 &900000104
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 372846367}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91f68c2a47312586433e3e4051627d89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -3782,7 +3797,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6048447333969230632, guid: 52873b253c909ca478a4e114023dc7d7, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6393904624873808274, guid: 52873b253c909ca478a4e114023dc7d7, type: 3}
       propertyPath: m_LocalPosition.x

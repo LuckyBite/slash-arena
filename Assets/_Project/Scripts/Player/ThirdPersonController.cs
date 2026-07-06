@@ -65,6 +65,11 @@ public class ThirdPersonController : MonoBehaviour
     public string pTrigKick  = "Kick";
     public string pBoolBlock = "Block";
     public string pTrigDodge = "Dodge";
+    public string pSprintMult = "SprintMult";
+
+    [Header("Sprint Anim")]
+    [Tooltip("Во сколько раз ускорять клип бега при спринте (визуальная разница бег/спринт)")]
+    [SerializeField] private float sprintAnimSpeed = 1.15f;
 
     public string actionAttackLight = "Attack_Light";
     public string actionAttackHeavy = "Attack_Heavy";
@@ -91,7 +96,9 @@ public class ThirdPersonController : MonoBehaviour
     private float dodgeUntil = -1f;
     private float dodgeCooldownUntil = -1f;
     private Vector3 dodgeDirection;
-    private bool IsDodging => Time.time < dodgeUntil;
+
+    /// <summary>Идёт перекат (i-frames: PlayerHealth игнорирует урон).</summary>
+    public bool IsDodging => Time.time < dodgeUntil;
 
     /// <summary>Игрок держит блок (для PlayerHealth и др.).</summary>
     public bool IsBlocking => blockHeld;
@@ -103,7 +110,7 @@ public class ThirdPersonController : MonoBehaviour
     private float _airStuckTimer;
 
     // animator hashes
-    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hDodge;
+    private int hMoveX, hMoveY, hSpeed, hIsMoving, hIsGrounded, hLight, hHeavy, hKick, hBlock, hDodge, hSprintMult;
 
     private void Awake()
     {
@@ -124,6 +131,7 @@ public class ThirdPersonController : MonoBehaviour
         hKick       = Animator.StringToHash(pTrigKick);
         hBlock      = Animator.StringToHash(pBoolBlock);
         hDodge      = Animator.StringToHash(pTrigDodge);
+        hSprintMult = Animator.StringToHash(pSprintMult);
 
         // Привязка инпута (Invoke C# Events)
         var map = pi.actions;
@@ -303,6 +311,7 @@ public class ThirdPersonController : MonoBehaviour
             animator.SetFloat(hMoveY, local.z);
             animator.SetFloat(hSpeed,  runNow ? (sprintAnim ? 1.5f : 1f) : 0f);
             animator.SetBool (hIsMoving, runNow);
+            animator.SetFloat(hSprintMult, (runNow && sprintAnim) ? sprintAnimSpeed : 1f);
             return;
         }
 
@@ -311,6 +320,9 @@ public class ThirdPersonController : MonoBehaviour
         animator.SetFloat(hMoveY, local.z, damp, Time.deltaTime);
         animator.SetFloat(hSpeed,  runNow ? (sprintAnim ? 1.5f : 1f) : 0f, damp, Time.deltaTime);
         animator.SetBool (hIsMoving, runNow);
+
+        // Спринт визуально: ускоряем клип бега (множитель скорости стейта Movement)
+        animator.SetFloat(hSprintMult, (runNow && sprintAnim) ? sprintAnimSpeed : 1f);
     }
 
     // ===== Input =====

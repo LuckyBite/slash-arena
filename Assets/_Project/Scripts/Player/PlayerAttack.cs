@@ -43,6 +43,22 @@ public class PlayerAttack : MonoBehaviour
     [Tooltip("Если ON — урон ждёт Animation Event (AnimEvent_DoHit). Если OFF — по нажатию/окну.")]
     public bool useAnimationEvents = false; // для окон стейта оставляем OFF
 
+    [Header("SFX (слоты — назначь клипы)")]
+    [Tooltip("Свист лёгкого удара")]
+    [SerializeField] private AudioClip swingLightClip;
+    [Tooltip("Свист тяжёлого удара")]
+    [SerializeField] private AudioClip swingHeavyClip;
+    [Tooltip("Свист кика")]
+    [SerializeField] private AudioClip swingKickClip;
+    [Tooltip("Звук попадания по врагу")]
+    [SerializeField] private AudioClip hitImpactClip;
+
+    [Header("Hitstop")]
+    [Tooltip("Микро-заморозка времени при попадании (0 = выкл)")]
+    [SerializeField] private float hitstopSeconds = 0.05f;
+    [Tooltip("Хитстоп только на тяжёлых ударах")]
+    [SerializeField] private bool hitstopHeavyOnly = true;
+
     [Header("Debug")]
     public bool drawGizmos = false;
     public bool debugLog   = false;
@@ -50,6 +66,8 @@ public class PlayerAttack : MonoBehaviour
     // Animation Events (когда useAnimationEvents = true)
     private bool pendingHit;
     private HitShape pendingShape;
+    private AttackStrength pendingStrength;
+    private bool hitstopActive;
 
     // буфер под OverlapSphere, чтобы не аллоцировать каждый раз
     private const int MaxHits = 32;
@@ -73,6 +91,7 @@ public class PlayerAttack : MonoBehaviour
         if (useAnimationEvents)
         {
             pendingShape = shape;
+            pendingStrength = strength;
             pendingHit = true;
         }
         else
@@ -84,7 +103,19 @@ public class PlayerAttack : MonoBehaviour
     public void ImmediateAttack(WeaponType weapon, AttackStrength strength)
     {
         var shape = SelectShape(weapon, strength);
-        DoHit(shape);
+        DoHit(shape, strength);
+    }
+
+    // Вызывается AttackStateWindow в момент старта стейта атаки — свист замаха
+    public void OnSwingStarted(AttackStrength strength)
+    {
+        Vector3 pos = hitOrigin ? hitOrigin.position : transform.position;
+        switch (strength)
+        {
+            case AttackStrength.Heavy: Sfx.Play(swingHeavyClip, pos); break;
+            case AttackStrength.Kick:  Sfx.Play(swingKickClip,  pos); break;
+            default:                   Sfx.Play(swingLightClip, pos); break;
+        }
     }
 
     private HitShape SelectShape(WeaponType weapon, AttackStrength strength)
@@ -98,11 +129,11 @@ public class PlayerAttack : MonoBehaviour
     public void AnimEvent_DoHit()
     {
         if (!pendingHit) return;
-        DoHit(pendingShape);
+        DoHit(pendingShape, pendingStrength);
         pendingHit = false;
     }
 
-    private void DoHit(HitShape shape)
+    private void DoHit(HitShape shape, AttackStrength strength)
     {
         Transform origin = hitOrigin ? hitOrigin : transform;
         Vector3 center = origin.position + origin.forward * shape.range + Vector3.up * shape.verticalOffset;
@@ -132,6 +163,31 @@ public class PlayerAttack : MonoBehaviour
             _damagedIds.Add(id);
             dmg.TakeDamage(shape.damage);
         }
+
+        if (_damagedIds.Count > 0)
+            OnHitLanded(center, strength);
+    }
+
+    // Попали хотя бы по одному врагу этим свингом
+    private void OnHitLanded(Vector3 at, AttackStrength strength)
+    {
+        Sfx.Play(hitImpactClip, at);
+
+        bool allowHitstop = hitstopSeconds > 0f && (!hitstopHeavyOnly || strength == AttackStrength.Heavy);
+        if (allowHitstop && !hitstopActive)
+            StartCoroutine(HitstopRoutine());
+    }
+
+    private System.Collections.IEnumerator HitstopRoutine()
+    {
+        hitstopActive = true;
+        float prev = Time.timeScale;
+        Time.timeScale = 0.05f;
+        yield return new WaitForSecondsRealtime(hitstopSeconds);
+        // Не воскрешаем время, если игра успела встать на паузу game over
+        if (GameManager.Instance == null || !GameManager.Instance.IsGameOver)
+            Time.timeScale = prev;
+        hitstopActive = false;
     }
 
 #if UNITY_EDITOR

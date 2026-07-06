@@ -16,6 +16,14 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     [Tooltip("Какая доля урона поглощается блоком (0.7 = минус 70% урона)")]
     [SerializeField, Range(0f, 1f)] private float blockDamageAbsorb = 0.7f;
 
+    [Header("SFX (слоты — назначь клипы)")]
+    [Tooltip("Получил урон")]
+    [SerializeField] private AudioClip hurtClip;
+    [Tooltip("Удар пришёл в блок")]
+    [SerializeField] private AudioClip blockedClip;
+    [Tooltip("Смерть игрока")]
+    [SerializeField] private AudioClip deathClip;
+
     private int currentHealth;
     private ThirdPersonController controller;
 
@@ -39,13 +47,19 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     {
         if (amount <= 0 || currentHealth <= 0) return;
 
+        // I-frames: во время переката урон не проходит вообще
+        if (controller != null && controller.IsDodging) return;
+
         // Блок поглощает часть урона (но минимум 1 всё же проходит)
-        if (controller != null && controller.IsBlocking)
+        bool blocked = controller != null && controller.IsBlocking;
+        if (blocked)
             amount = Mathf.Max(1, Mathf.RoundToInt(amount * (1f - blockDamageAbsorb)));
 
         currentHealth = Mathf.Max(0, currentHealth - amount);
         if (healthSlider != null)
             healthSlider.value = currentHealth;
+
+        Sfx.Play(blocked ? blockedClip : hurtClip, transform.position);
 
         if (currentHealth <= 0)
         {
@@ -55,6 +69,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     void Die()
     {
+        Sfx.Play(deathClip, transform.position);
         CursorLocker.playerIsAlive = false;
         if (GameManager.Instance != null)
             GameManager.Instance.ShowGameOver();
