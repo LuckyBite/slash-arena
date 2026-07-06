@@ -15,7 +15,7 @@ MonoBehaviour:
   id: sword
   displayName: "Меч"
   icon: {fileID: 0}
-  handPrefab: {fileID: 0}
+  handPrefab: {fileID: 5648164778633679083, guid: b99eeca4b92b0b2408bdea5f80af2b65, type: 3}
   config:
     light:
       damage: 30

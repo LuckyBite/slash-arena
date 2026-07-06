@@ -39,6 +39,13 @@ public class CursorLocker : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        // Пришли из меню (или запустили сцену напрямую) — сразу лочим курсор,
+        // чтобы обзор мышью работал без предварительного клика
+        if (playerIsAlive) TryLock();
+    }
+
     private void OnLeftClick(InputAction.CallbackContext ctx) => TryLock();
     private void OnEsc(InputAction.CallbackContext ctx) => UnlockCursor();
 

@@ -24,6 +24,10 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private Color buttonColor = new Color(0.17f, 0.17f, 0.21f);
     [SerializeField] private Color accentColor = new Color(0.85f, 0.30f, 0.20f);
 
+    [Header("Музыка (слот)")]
+    [SerializeField] private AudioClip music;
+    [SerializeField, Range(0f, 1f)] private float musicVolume = 0.35f;
+
     private GameObject mainPanel;
     private GameObject wardrobePanel;
     private TMP_Text skinLabel;
@@ -36,7 +40,26 @@ public class MainMenuController : MonoBehaviour
 
         EnsureCamera();
         EnsureEventSystem();
-        BuildUi();
+
+        try
+        {
+            BuildUi();
+            Debug.Log("[Menu] UI построен");
+        }
+        catch (System.Exception e)
+        {
+            // Если UI не построился — покажи мне этот лог, починю точечно
+            Debug.LogError($"[Menu] Ошибка построения UI: {e}");
+        }
+
+        if (music)
+        {
+            var src = gameObject.AddComponent<AudioSource>();
+            src.clip = music;
+            src.loop = true;
+            src.volume = musicVolume;
+            src.Play();
+        }
     }
 
     private void EnsureCamera()

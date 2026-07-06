@@ -168,6 +168,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d53ab06e8b75692a877c827495a61bcd, type: 2}
   - {fileID: 11400000, guid: e64bc17f9c866a3b988d938506b72cde, type: 2}
   - {fileID: 11400000, guid: f75cd28aad977b4ca99ea49617c83def, type: 2}
+  music: {fileID: 8300000, guid: 2fad1adb2fa3bdb4b9b55a7e1a8835f1, type: 3}
+  musicVolume: 0.35
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

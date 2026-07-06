@@ -15,7 +15,7 @@ MonoBehaviour:
   id: axe
   displayName: "Топор"
   icon: {fileID: 0}
-  handPrefab: {fileID: 0}
+  handPrefab: {fileID: 381841188022926127, guid: 2fb5024f5f565704c99523d552086f65, type: 3}
   config:
     light:
       damage: 40
