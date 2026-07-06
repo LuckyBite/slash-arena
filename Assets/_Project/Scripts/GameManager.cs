@@ -11,6 +11,8 @@ public class GameManager : MonoBehaviour
     public TMP_Text scoreText;
     [Tooltip("Слот: надпись «Волна N» (создай TMP-текст на Canvas и привяжи)")]
     public TMP_Text waveText;
+    [Tooltip("Слот: итоги забега на панели game over (очки/волна/рекорд)")]
+    public TMP_Text gameOverStatsText;
 
     [Header("Config")]
     [Tooltip("Глобальный конфиг (очки за убийство и т. д.)")]
@@ -44,6 +46,20 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0;
         CursorLocker.UnlockCursor(); // иначе по панели нельзя кликнуть
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
+
+        // Рекорды: лучший счёт и лучшая волна — в сейв
+        var save = SaveService.Data;
+        bool newRecord = score > save.bestScore;
+        if (newRecord) save.bestScore = score;
+        if (WaveReached > save.bestWave) save.bestWave = WaveReached;
+        SaveService.Save();
+
+        if (gameOverStatsText != null)
+        {
+            gameOverStatsText.text =
+                $"Очки: {score}   Волна: {WaveReached}\n" +
+                (newRecord ? "НОВЫЙ РЕКОРД!" : $"Рекорд: {save.bestScore}");
+        }
     }
 
     public void Restart()
@@ -51,6 +67,14 @@ public class GameManager : MonoBehaviour
         CursorLocker.playerIsAlive = true; // static переживает перезагрузку сцены
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    // Кнопка «В меню» на панели game over (привяжи onClick в Editor)
+    public void BackToMenu()
+    {
+        CursorLocker.playerIsAlive = true;
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MainMenu");
     }
 
     // Вызывается EnemyHealth при смерти врага
