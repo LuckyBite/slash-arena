@@ -18,12 +18,24 @@ public class EnemySpawner : MonoBehaviour
     /// </summary>
     public GameObject SpawnOne(float hpMultiplier)
     {
-        if (enemyPrefabs == null || enemyPrefabs.Length == 0) return null;
-        if (spawnPoints == null || spawnPoints.Length == 0) return null;
+        if (enemyPrefabs == null || enemyPrefabs.Length == 0)
+        {
+            Debug.LogWarning($"[EnemySpawner] {name}: пустой массив enemyPrefabs");
+            return null;
+        }
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning($"[EnemySpawner] {name}: пустой массив spawnPoints");
+            return null;
+        }
 
         var prefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
         var point = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        if (!prefab || !point) return null;
+        if (!prefab || !point)
+        {
+            Debug.LogWarning($"[EnemySpawner] {name}: null-элемент в enemyPrefabs/spawnPoints");
+            return null;
+        }
 
         Vector3 pos = point.position;
         if (TryFindNavmeshPosition(pos, 2.0f, out var navPos))

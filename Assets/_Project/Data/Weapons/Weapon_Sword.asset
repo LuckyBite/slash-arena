@@ -29,7 +29,7 @@ MonoBehaviour:
       verticalOffset: 1
   maxDurability: 25
   durabilityLossPerHit: 1
-  overrideController: {fileID: 0}
+  overrideController: {fileID: 22100000, guid: dd44ee55ff66778899aa0011bb22cc33, type: 2}
   swingClip: {fileID: 0}
   hitClip: {fileID: 0}
   pickupClip: {fileID: 0}

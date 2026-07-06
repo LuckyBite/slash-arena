@@ -8,10 +8,14 @@ using UnityEngine;
 public class WeaponHolder : MonoBehaviour
 {
     [Header("Refs")]
-    [Tooltip("Сокет в правой руке (пустышка на кости). Пусто = статы работают, но модель в руке не появится")]
+    [Tooltip("Сокет в правой руке. Пусто = создадим сами на кости RightHand (модель Humanoid)")]
     [SerializeField] private Transform handSocket;
     [Tooltip("Animator персонажа; пусто — возьмём из ThirdPersonController или детей")]
     [SerializeField] private Animator animator;
+
+    [Header("Хват (локальный оффсет модели оружия в руке — подстрой в инспекторе)")]
+    [SerializeField] private Vector3 gripLocalPosition = Vector3.zero;
+    [SerializeField] private Vector3 gripLocalEuler = Vector3.zero;
 
     /// <summary>Экип / поломка / трата прочности — для HUD.</summary>
     public event Action Changed;
@@ -34,6 +38,25 @@ public class WeaponHolder : MonoBehaviour
         if (animator) baseController = animator.runtimeAnimatorController;
     }
 
+    private void Start()
+    {
+        // Сокет не назначен — создаём сами на кости правой кисти (модель Humanoid)
+        if (handSocket == null && animator != null && animator.isHuman)
+        {
+            var hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+            if (hand != null)
+            {
+                var socket = new GameObject("RightHandSocket (auto)");
+                socket.transform.SetParent(hand, false);
+                handSocket = socket.transform;
+            }
+            else
+            {
+                Debug.LogWarning("[Weapon] Кость RightHand не найдена — оружие в руке не появится.");
+            }
+        }
+    }
+
     public void Equip(WeaponDefinition def)
     {
         if (def == null) return;
@@ -45,8 +68,8 @@ public class WeaponHolder : MonoBehaviour
         if (def.handPrefab && handSocket)
         {
             visualInstance = Instantiate(def.handPrefab, handSocket);
-            visualInstance.transform.localPosition = Vector3.zero;
-            visualInstance.transform.localRotation = Quaternion.identity;
+            visualInstance.transform.localPosition = gripLocalPosition;
+            visualInstance.transform.localRotation = Quaternion.Euler(gripLocalEuler);
         }
 
         // ВНИМАНИЕ: смена RuntimeAnimatorController сбрасывает текущее состояние аниматора.

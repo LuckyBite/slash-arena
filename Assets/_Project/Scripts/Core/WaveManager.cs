@@ -34,7 +34,8 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private EnemySpawner[] spawners;
     [SerializeField] private WeaponSpawner weaponSpawner;
 
-    [SerializeField] private bool debugLog = false;
+    [Tooltip("Подробный лог волн (диагностика). Выключишь, когда волны устаканятся")]
+    [SerializeField] private bool debugLog = true;
 
     public int CurrentWave { get; private set; }
 
@@ -74,34 +75,58 @@ public class WaveManager : MonoBehaviour
                 GameManager.Instance.ReportWaveReached(CurrentWave);
                 GameManager.Instance.SetWaveLabel($"Волна {CurrentWave}");
             }
-            if (weaponSpawner) weaponSpawner.SpawnForWave(CurrentWave);
+            if (weaponSpawner)
+            {
+                try { weaponSpawner.SpawnForWave(CurrentWave); }
+                catch (System.Exception e) { Debug.LogError($"[WaveManager] Ошибка спавна оружия (волны продолжаются): {e}"); }
+            }
 
             int count = Mathf.Min(baseEnemies + enemiesGrowthPerWave * (CurrentWave - 1), maxEnemiesPerWave);
             float hpMult = 1f + hpGrowthPerWave * (CurrentWave - 1);
 
             if (debugLog)
-                Debug.Log($"[WaveManager] Волна {CurrentWave}: врагов {count}, HP x{hpMult:F2}");
+                Debug.Log($"[WaveManager] Волна {CurrentWave}: план {count} врагов, HP x{hpMult:F2}");
 
-            // Спавним волну порциями, спавнеры по кругу
+            // Спавним волну порциями, спавнеры по кругу.
+            // try/catch на каждом спавне: одна ошибка не должна убивать цикл волн навсегда.
+            int spawned = 0;
             for (int i = 0; i < count; i++)
             {
-                var spawner = spawners[i % spawners.Length];
-                var go = spawner ? spawner.SpawnOne(hpMult) : null;
-                if (go)
+                try
                 {
-                    var eh = go.GetComponent<EnemyHealth>();
-                    if (eh)
+                    var spawner = spawners[i % spawners.Length];
+                    var go = spawner ? spawner.SpawnOne(hpMult) : null;
+                    if (go)
                     {
-                        alive.Add(eh);
-                        eh.Died += OnEnemyDied;
+                        spawned++;
+                        var eh = go.GetComponent<EnemyHealth>();
+                        if (eh)
+                        {
+                            alive.Add(eh);
+                            eh.Died += OnEnemyDied;
+                        }
                     }
+                    else if (debugLog)
+                    {
+                        Debug.LogWarning($"[WaveManager] Спавнер #{i % spawners.Length} не заспавнил врага (см. лог EnemySpawner)");
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"[WaveManager] Ошибка спавна: {e}");
                 }
                 yield return new WaitForSeconds(spawnInterval);
             }
 
+            if (debugLog)
+                Debug.Log($"[WaveManager] Волна {CurrentWave}: заспавнено {spawned}/{count}, живых {AliveCount()}");
+
             // Ждём зачистки волны
             while (AliveCount() > 0)
                 yield return pollWait;
+
+            if (debugLog)
+                Debug.Log($"[WaveManager] Волна {CurrentWave} зачищена");
 
             // Бонус за волну и передышка
             if (GameManager.Instance != null)
